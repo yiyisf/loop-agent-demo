@@ -24,6 +24,11 @@ test.describe('loop-agent smoke', () => {
     // Sidebar lists the thread under today's group with a generated title.
     await expect(page.getByText('今天')).toBeVisible();
     await expect(page.getByRole('link', { name: /计算/ })).toBeVisible();
+
+    // Cmd/Ctrl+K jumps back to the new-task page and focuses the composer.
+    await page.keyboard.press('ControlOrMeta+k');
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('textbox', { name: '任务输入' })).toBeFocused();
   });
 
   test('tool approval pauses the run until the user decides', async ({ page }) => {
@@ -33,7 +38,7 @@ test.describe('loop-agent smoke', () => {
     await composer.press('Enter');
 
     await expect(page.getByText('工具审批')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText('有工具调用等待你的审批')).toBeVisible();
+    await expect(page.getByText('有工具调用等待你的审批', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '拒绝' }).click();
 
     await expect(page.getByText('失败').first()).toBeVisible({ timeout: 45_000 });
