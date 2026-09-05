@@ -4,6 +4,7 @@ const ConfigSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
+  /** libsql URL (`file:...`) or `memory` for an in-process store. */
   DATABASE_URL: z.string().default('file:./data/loop-agent.db'),
   DATA_DIR: z.string().default('./data'),
 

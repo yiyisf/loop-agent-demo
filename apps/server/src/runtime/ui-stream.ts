@@ -138,13 +138,13 @@ export function eventToChunks(
       }
       break;
     case 'error':
-      if (event.fatal) chunks.push({ type: 'error', errorText: event.message });
-      else
-        chunks.push({
-          type: 'data-notice',
-          data: { level: 'error', message: event.message },
-          transient: true,
-        });
+      // Fatal errors are followed by a terminal `run.status`, which carries the
+      // reason; an `error` chunk would abort client-side processing before it.
+      chunks.push({
+        type: 'data-notice',
+        data: { level: 'error', message: event.message },
+        transient: true,
+      });
       break;
     case 'reflection':
       break;

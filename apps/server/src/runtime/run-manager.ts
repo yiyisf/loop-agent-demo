@@ -51,13 +51,16 @@ export interface RunManagerDeps {
   models: ModelProvider;
   tools: ToolRegistry;
   engine?: LoopEngine;
+  /** Called once the run record exists, before the engine starts (persist it here). */
+  onRunCreated?: (run: Run) => void | Promise<void>;
   /** Called with the final projection when a run reaches a terminal state. */
   onRunFinished?: (snapshot: RunSnapshot) => void | Promise<void>;
 }
 
 export class RunManager {
   private active = new Map<string, ActiveRun>();
-  private finished = new Map<string, RunState>();
+  /** Finished runs kept for quick snapshot access; `done` also covers the finish hooks. */
+  private finished = new Map<string, { state: RunState; done: Promise<void> }>();
   private readonly engine: LoopEngine;
 
   constructor(private readonly deps: RunManagerDeps) {
@@ -95,6 +98,7 @@ export class RunManager {
     };
 
     const { bus, config, logger } = this.deps;
+    await this.deps.onRunCreated?.(run);
     bus.open(run.id);
     const state = new RunState(run);
     const controller = new AbortController();
@@ -170,7 +174,7 @@ export class RunManager {
         clearTimeout(entry.timeout);
         bus.close(run.id);
         this.active.delete(run.id);
-        this.finished.set(run.id, state);
+        this.finished.set(run.id, { state, done: entry.done });
         try {
           await this.deps.onRunFinished?.(state.snapshot());
         } catch (err) {
@@ -182,7 +186,7 @@ export class RunManager {
   }
 
   get(runId: string): RunSnapshot | undefined {
-    return (this.active.get(runId)?.state ?? this.finished.get(runId))?.snapshot();
+    return (this.active.get(runId)?.state ?? this.finished.get(runId)?.state)?.snapshot();
   }
 
   isActive(runId: string): boolean {
@@ -215,13 +219,16 @@ export class RunManager {
     return this.active.get(runId)?.waiters.has(key) ?? false;
   }
 
-  /** Waits for a run to finish (used by tests and graceful shutdown). */
+  /** Waits for a run and its finish hooks to complete (tests, graceful shutdown). */
   async wait(runId: string): Promise<void> {
-    await this.active.get(runId)?.done;
+    await (this.active.get(runId) ?? this.finished.get(runId))?.done;
   }
 
   async shutdown(): Promise<void> {
     for (const [id] of this.active) this.cancel(id, 'server shutting down');
-    await Promise.all([...this.active.values()].map((a) => a.done));
+    await Promise.all([
+      ...[...this.active.values()].map((a) => a.done),
+      ...[...this.finished.values()].map((f) => f.done),
+    ]);
   }
 }

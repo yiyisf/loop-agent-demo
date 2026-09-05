@@ -8,11 +8,13 @@ import { metaRoutes } from './routes/meta.js';
 import { runRoutes } from './routes/runs.js';
 import { threadRoutes } from './routes/threads.js';
 import { EventBus } from './runtime/event-bus.js';
+import { recoverInterruptedRuns } from './runtime/recovery.js';
 import { RunManager } from './runtime/run-manager.js';
+import { generateThreadTitle } from './runtime/title.js';
 import { createDefaultToolRegistry } from './runtime/tools/builtin/index.js';
 import type { ToolRegistry } from './runtime/tools/registry.js';
 import { buildAssistantMessage } from './runtime/ui-stream.js';
-import { createMemoryStores } from './store/memory.js';
+import { createStores } from './store/index.js';
 import type { Stores } from './store/types.js';
 
 export interface AppDeps {
@@ -35,7 +37,7 @@ export interface AppContext {
 
 export async function createApp(deps: AppDeps) {
   const { config, logger } = deps;
-  const stores = deps.stores ?? createMemoryStores();
+  const stores = deps.stores ?? (await createStores(config));
   const tools = deps.tools ?? createDefaultToolRegistry(config);
   const modelProvider = deps.modelProvider ?? createModelProvider(config);
 
@@ -50,16 +52,25 @@ export async function createApp(deps: AppDeps) {
     bus,
     models: modelProvider,
     tools,
+    onRunCreated: (run) => stores.runs.create(run),
     onRunFinished: async (snapshot) => {
+      const { run } = snapshot;
       await stores.runs.saveSnapshot(snapshot);
-      await stores.threads.appendMessage(snapshot.run.threadId, buildAssistantMessage(snapshot));
+      await stores.threads.appendMessage(run.threadId, buildAssistantMessage(snapshot));
+
+      const runs = await stores.runs.listByThread(run.threadId);
+      if (runs.length === 1 && run.status === 'succeeded') {
+        const title = await generateThreadTitle(modelProvider, logger, {
+          input: run.input,
+          answer: run.finalAnswer,
+          model: run.model,
+        });
+        await stores.threads.updateTitle(run.threadId, title);
+      }
     },
   });
 
-  const interrupted = await stores.runs.failInterrupted(
-    'Server restarted while the run was in progress',
-  );
-  if (interrupted > 0) logger.warn({ interrupted }, 'marked interrupted runs as failed');
+  await recoverInterruptedRuns(stores, logger);
 
   const ctx: AppContext = { config, logger, modelProvider, tools, stores, bus, runManager };
 
@@ -98,5 +109,10 @@ export async function createApp(deps: AppDeps) {
     return c.json({ error: 'Internal server error' }, 500);
   });
 
-  return { app, ctx };
+  const close = async () => {
+    await runManager.shutdown();
+    await stores.close();
+  };
+
+  return { app, ctx, close };
 }

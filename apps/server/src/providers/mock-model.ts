@@ -248,6 +248,11 @@ export const defaultMockScript: MockScript = (ctx) => {
     }
     case 'reflector':
       return { json: { action: 'continue', note: 'mock: 继续执行' } };
+    case 'titler': {
+      const task =
+        /用户任务：\n([\s\S]*?)(?:\n\n|$)/.exec(ctx.lastUserText)?.[1] ?? ctx.lastUserText;
+      return { text: shortTitle(task) };
+    }
     default:
       return {
         text: [
@@ -268,6 +273,17 @@ export const defaultMockScript: MockScript = (ctx) => {
       };
   }
 };
+
+/** First 12 characters of the task, without cutting a Latin word in half. */
+function shortTitle(task: string): string {
+  const text = task.trim().replace(/\s+/g, ' ');
+  if (text.length <= 12) return text || '新会话';
+  let cut = text.slice(0, 12);
+  if (/[A-Za-z0-9]$/.test(cut) && /^[A-Za-z0-9]/.test(text[12] ?? '')) {
+    cut = cut.replace(/[A-Za-z0-9]+$/, '');
+  }
+  return cut.trim() || text.slice(0, 12);
+}
 
 function taskFromPrompt(prompt: string): string {
   const m = /Task:\n([\s\S]*?)(?:\n\n|$)/.exec(prompt);

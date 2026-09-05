@@ -22,6 +22,7 @@ interface RunStoreState {
   mode: RunMode;
   model: string | undefined;
   appendStepLog: (runId: string, stepId: string, kind: 'text' | 'reasoning', delta: string) => void;
+  clearStepLogs: (runId: string) => void;
   pushNotice: (level: Notice['level'], message: string) => void;
   dismissNotice: (id: number) => void;
   setPendingMessage: (p: RunStoreState['pendingMessage']) => void;
@@ -47,6 +48,12 @@ export const useRunStore = create<RunStoreState>()((set) => ({
           [runId]: { ...forRun, [stepId]: { ...log, [kind]: log[kind] + delta } },
         },
       };
+    }),
+  clearStepLogs: (runId) =>
+    set((s) => {
+      if (!(runId in s.stepLogs)) return {};
+      const { [runId]: _removed, ...rest } = s.stepLogs;
+      return { stepLogs: rest };
     }),
   pushNotice: (level, message) =>
     set((s) => ({

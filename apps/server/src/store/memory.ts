@@ -104,20 +104,21 @@ export class MemoryRunStore implements RunStore {
     return (this.eventsByRun.get(runId) ?? []).filter((e) => e.seq > fromSeq).slice(0, limit);
   }
 
-  async failInterrupted(reason: string): Promise<number> {
-    let n = 0;
-    for (const run of this.runs.values()) {
-      if (!TERMINAL_RUN_STATUSES.has(run.status)) {
-        run.status = 'failed';
-        run.error = reason;
-        run.endedAt = nowIso();
-        n++;
-      }
+  async listUnfinished(): Promise<Run[]> {
+    const out: Run[] = [];
+    for (const id of this.runs.keys()) {
+      const run = await this.get(id);
+      if (run && !TERMINAL_RUN_STATUSES.has(run.status)) out.push(run);
     }
-    return n;
+    return out;
   }
 }
 
 export function createMemoryStores(): Stores {
-  return { threads: new MemoryThreadStore(), runs: new MemoryRunStore() };
+  return {
+    kind: 'memory',
+    threads: new MemoryThreadStore(),
+    runs: new MemoryRunStore(),
+    close: async () => undefined,
+  };
 }

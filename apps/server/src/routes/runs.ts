@@ -1,4 +1,4 @@
-import { RUN_ID_HEADER, type Run } from '@loop-agent/shared';
+import { RUN_ID_HEADER, type Run, TERMINAL_RUN_STATUSES } from '@loop-agent/shared';
 import { createUIMessageStreamResponse } from 'ai';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -40,6 +40,11 @@ export function runRoutes(ctx: AppContext) {
     const runId = c.req.param('id');
     const run = await loadRun(runId);
     const fromSeq = Number(c.req.query('fromSeq') ?? 0) || 0;
+    // Finished and no longer buffered: the client already has the persisted
+    // message, so there is nothing to resume (AI SDK treats 204 as "no stream").
+    if (TERMINAL_RUN_STATUSES.has(run.status) && !bus.has(runId) && fromSeq === 0) {
+      return c.body(null, 204);
+    }
     const initial: Run = { ...run, status: 'queued' };
     return createUIMessageStreamResponse({
       stream: createRunUIStream({ bus, run: initial, fromSeq, signal: c.req.raw.signal }),

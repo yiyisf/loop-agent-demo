@@ -38,6 +38,11 @@ export const api = {
     }).then((r) => r.thread),
   getThread: (id: string) => request<ThreadDetail>(`/api/threads/${id}`),
   deleteThread: (id: string) => request<void>(`/api/threads/${id}`, { method: 'DELETE' }),
+  renameThread: (id: string, title: string) =>
+    request<{ thread: ThreadListItem }>(`/api/threads/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    }).then((r) => r.thread),
   getRun: (id: string) => request<RunSnapshot>(`/api/runs/${id}`),
   cancelRun: (id: string) => request<{ ok: boolean }>(`/api/runs/${id}/cancel`, { method: 'POST' }),
   listTools: () => request<{ tools: ToolInfo[] }>('/api/tools').then((r) => r.tools),

@@ -1,3 +1,4 @@
+import { TERMINAL_RUN_STATUSES } from '@loop-agent/shared';
 import { useEffect, useRef } from 'react';
 import { TopBar } from '@/components/layout/top-bar';
 import { api } from '@/lib/api';
@@ -16,6 +17,7 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
   const setPendingMessage = useRunStore((s) => s.setPendingMessage);
   const setActive = useWorkbenchStore((s) => s.setActive);
   const sentPending = useRef(false);
+  const resumedRun = useRef<string | null>(null);
 
   useEffect(() => {
     if (pending && pending.threadId === threadId && !sentPending.current) {
@@ -24,6 +26,21 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
       chat.send(pending.text);
     }
   }, [pending, threadId, chat, setPendingMessage]);
+
+  // Coming back to a thread whose run is still in flight (refresh, navigation):
+  // re-attach to the server-side stream and replay what happened so far.
+  const activeRunId = detail.thread.activeRunId;
+  const viewedRunId = chat.runView.runId;
+  const viewedStatus = chat.runView.status;
+  useEffect(() => {
+    if (!activeRunId || chat.isBusy || resumedRun.current === activeRunId) return;
+    if (pending?.threadId === threadId) return;
+    // Thread query may lag behind a run we already watched to completion.
+    if (viewedRunId === activeRunId && viewedStatus && TERMINAL_RUN_STATUSES.has(viewedStatus))
+      return;
+    resumedRun.current = activeRunId;
+    void chat.resume(activeRunId);
+  }, [activeRunId, chat, pending, threadId, viewedRunId, viewedStatus]);
 
   useEffect(() => {
     setActive(threadId, chat.runView);

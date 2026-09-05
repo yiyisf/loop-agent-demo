@@ -3,12 +3,14 @@ import {
   type RunMode,
   SendMessageRequestSchema,
   THREAD_ID_HEADER,
+  UpdateThreadRequestSchema,
 } from '@loop-agent/shared';
 import { createUIMessageStreamResponse } from 'ai';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../app.js';
 import { newId, nowIso } from '../lib/ids.js';
+import { fallbackTitle } from '../runtime/title.js';
 import { createRunUIStream, type LoopAgentUIMessage } from '../runtime/ui-stream.js';
 
 interface UserMessageLike {
@@ -93,6 +95,16 @@ export function threadRoutes(ctx: AppContext) {
     });
   });
 
+  router.patch('/:id', async (c) => {
+    const id = c.req.param('id');
+    const thread = await stores.threads.get(id);
+    if (!thread) throw new HTTPException(404, { message: 'Thread not found' });
+    const parsed = UpdateThreadRequestSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) throw new HTTPException(400, { message: 'Invalid request body' });
+    await stores.threads.updateTitle(id, parsed.data.title.trim());
+    return c.json({ thread: await stores.threads.get(id) });
+  });
+
   router.delete('/:id', async (c) => {
     const id = c.req.param('id');
     const active = runManager.activeRunForThread(id);
@@ -125,7 +137,7 @@ export function threadRoutes(ctx: AppContext) {
     };
     await stores.threads.appendMessage(threadId, userMessage);
     if (previous.length === 0) {
-      await stores.threads.updateTitle(threadId, text.slice(0, 40));
+      await stores.threads.updateTitle(threadId, fallbackTitle(text));
     }
 
     const run = await runManager.start({
@@ -136,7 +148,6 @@ export function threadRoutes(ctx: AppContext) {
       autoApprove: parsed.data.toolPolicy?.autoApprove ?? false,
       history: buildHistory(previous),
     });
-    await stores.runs.create(run);
 
     return createUIMessageStreamResponse({
       stream: createRunUIStream({ bus, run, signal: c.req.raw.signal }),

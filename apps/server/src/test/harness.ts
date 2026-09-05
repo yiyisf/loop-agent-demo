@@ -17,6 +17,7 @@ export async function createTestHarness(options: TestHarnessOptions = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'loop-agent-test-'));
   const config: AppConfig = loadConfig({
     LLM_PROVIDER: 'mock',
+    DATABASE_URL: 'memory',
     DATA_DIR: dataDir,
     LOG_LEVEL: 'silent',
     BUDGET_MAX_DURATION_MS: '60000',
@@ -26,7 +27,7 @@ export async function createTestHarness(options: TestHarnessOptions = {}) {
   const modelProvider = createModelProvider(config, {
     mockScript: options.script ?? defaultMockScript,
   });
-  const { app, ctx } = await createApp({ config, logger, modelProvider });
+  const { app, ctx, close } = await createApp({ config, logger, modelProvider });
 
   const startRun = async (text: string, extra: Record<string, unknown> = {}) => {
     const thread = await ctx.stores.threads.create();
@@ -54,9 +55,9 @@ export async function createTestHarness(options: TestHarnessOptions = {}) {
   };
 
   const cleanup = async () => {
-    await ctx.runManager.shutdown();
+    await close();
     await rm(dataDir, { recursive: true, force: true });
   };
 
-  return { app, ctx, config, startRun, collectEvents, readSse, cleanup };
+  return { app, ctx, config, dataDir, startRun, collectEvents, readSse, cleanup };
 }

@@ -19,14 +19,17 @@ export interface RunStore {
   listByThread(threadId: string): Promise<Run[]>;
   saveSnapshot(snapshot: RunSnapshot): Promise<void>;
   getSnapshot(runId: string): Promise<RunSnapshot | undefined>;
+  /** Persists a non-transient event; implementations may batch writes. */
   appendEvent(event: RunEvent): Promise<void>;
+  /** Events with `seq > fromSeq`, ordered by seq. Pending batched writes are flushed first. */
   events(runId: string, fromSeq?: number, limit?: number): Promise<RunEvent[]>;
-  /** Marks runs that were still in-flight when the server stopped. */
-  failInterrupted(reason: string): Promise<number>;
+  /** Runs that never reached a terminal status (e.g. interrupted by a restart). */
+  listUnfinished(): Promise<Run[]>;
 }
 
 export interface Stores {
+  readonly kind: 'memory' | 'sqlite';
   threads: ThreadStore;
   runs: RunStore;
-  close?: () => Promise<void>;
+  close(): Promise<void>;
 }
