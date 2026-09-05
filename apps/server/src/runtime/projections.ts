@@ -4,30 +4,14 @@ import {
   type Plan,
   type Run,
   type RunEvent,
+  type RunSnapshot,
   type Step,
   TERMINAL_RUN_STATUSES,
+  type ToolCallRecord,
   type UserQuestion,
 } from '@loop-agent/shared';
 
-export interface ToolCallRecord {
-  stepId: string;
-  toolCallId: string;
-  toolName: string;
-  input: unknown;
-  output?: unknown;
-  isError?: boolean;
-  durationMs?: number;
-  state: 'calling' | 'done';
-}
-
-export interface RunSnapshot {
-  run: Run;
-  plan: Plan | null;
-  approvals: Approval[];
-  questions: UserQuestion[];
-  toolCalls: ToolCallRecord[];
-  lastSeq: number;
-}
+export type { RunSnapshot, ToolCallRecord };
 
 /**
  * Mutable projection of a run built purely from its event log. The engine

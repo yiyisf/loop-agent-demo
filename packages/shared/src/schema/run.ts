@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BudgetSchema, IsoDateTime, UsageSchema } from './common.js';
+import type { Plan } from './plan.js';
 
 export const RunStatusSchema = z.enum([
   'queued',
@@ -90,6 +91,27 @@ export const ArtifactSchema = z.object({
   createdAt: IsoDateTime,
 });
 export type Artifact = z.infer<typeof ArtifactSchema>;
+
+export interface ToolCallRecord {
+  stepId: string;
+  toolCallId: string;
+  toolName: string;
+  input: unknown;
+  output?: unknown;
+  isError?: boolean;
+  durationMs?: number;
+  state: 'calling' | 'done';
+}
+
+/** Point-in-time projection of a run, as served by GET /api/runs/:id. */
+export interface RunSnapshot {
+  run: Run;
+  plan: Plan | null;
+  approvals: Approval[];
+  questions: UserQuestion[];
+  toolCalls: ToolCallRecord[];
+  lastSeq: number;
+}
 
 /** Request body for starting a run in a thread. */
 export const SendMessageRequestSchema = z.object({

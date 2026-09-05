@@ -33,7 +33,7 @@ export const useUiStore = create<UiState>()(
     (set, get) => ({
       theme: initialTheme(),
       sidebarOpen: true,
-      workbenchOpen: true,
+      workbenchOpen: typeof window !== 'undefined' ? window.innerWidth >= 1280 : true,
       selectedStepId: null,
       setTheme: (theme) => {
         applyTheme(theme);
