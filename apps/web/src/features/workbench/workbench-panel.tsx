@@ -1,4 +1,4 @@
-import { Activity, ListTree, PanelRightClose } from 'lucide-react';
+import { Activity, ListTree, PanelRightClose, ScrollText } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +8,7 @@ import { cn, formatDuration, formatTokens } from '@/lib/utils';
 import { useRunStore } from '@/stores/run-store';
 import { useUiStore } from '@/stores/ui-store';
 import { useWorkbenchStore } from '@/stores/workbench-store';
+import { RunEvents } from './run-events';
 import { StepDetail } from './step-detail';
 
 export function WorkbenchPanel() {
@@ -52,6 +53,9 @@ export function WorkbenchPanel() {
               </TabsTrigger>
               <TabsTrigger value="run">
                 <Activity /> 运行
+              </TabsTrigger>
+              <TabsTrigger value="events">
+                <ScrollText /> 事件
               </TabsTrigger>
             </TabsList>
           </div>
@@ -135,6 +139,14 @@ export function WorkbenchPanel() {
                 <p className="mb-1 text-xs font-medium text-muted-foreground">规划思路</p>
                 <p className="text-xs">{view.plan.rationale}</p>
               </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="events" className="min-h-0 overflow-y-auto scrollbar-thin">
+            {view.runId ? (
+              <RunEvents runId={view.runId} live={!view.isTerminal} />
+            ) : (
+              <p className="p-4 text-center text-sm text-muted-foreground">暂无事件</p>
             )}
           </TabsContent>
         </Tabs>

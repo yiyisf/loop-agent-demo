@@ -78,6 +78,7 @@ export function Composer({
         ref={ref}
         id={id}
         name="prompt"
+        aria-label="任务输入"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}

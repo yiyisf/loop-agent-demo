@@ -1,4 +1,4 @@
-import type { PlanConfirmation } from '@loop-agent/shared';
+import type { PlanConfirmation, RunEvent } from '@loop-agent/shared';
 import type { ModelsInfo, RunSnapshot, ThreadDetail, ThreadListItem, ToolInfo } from './types';
 
 export class ApiError extends Error {
@@ -45,6 +45,8 @@ export const api = {
       body: JSON.stringify({ title }),
     }).then((r) => r.thread),
   getRun: (id: string) => request<RunSnapshot>(`/api/runs/${id}`),
+  getRunEvents: (id: string, limit = 500) =>
+    request<{ events: RunEvent[]; active: boolean }>(`/api/runs/${id}/events?limit=${limit}`),
   cancelRun: (id: string) => request<{ ok: boolean }>(`/api/runs/${id}/cancel`, { method: 'POST' }),
   respondApproval: (runId: string, approvalId: string, approved: boolean, reason?: string) =>
     request<{ ok: boolean }>(`/api/runs/${runId}/approvals/${approvalId}`, {
@@ -69,6 +71,7 @@ export const queryKeys = {
   threads: ['threads'] as const,
   thread: (id: string) => ['threads', id] as const,
   run: (id: string) => ['runs', id] as const,
+  runEvents: (id: string) => ['runs', id, 'events'] as const,
   tools: ['tools'] as const,
   models: ['models'] as const,
 };
