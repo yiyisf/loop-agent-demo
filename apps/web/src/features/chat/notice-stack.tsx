@@ -19,7 +19,7 @@ export function NoticeStack() {
 
   if (notices.length === 0) return null;
   return (
-    <div className="mb-2 grid gap-1.5">
+    <div role="status" aria-live="polite" className="mb-2 grid gap-1.5">
       {notices.map((n) => (
         <div
           key={n.id}

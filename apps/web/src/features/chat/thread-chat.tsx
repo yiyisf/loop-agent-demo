@@ -1,8 +1,10 @@
 import { TERMINAL_RUN_STATUSES } from '@loop-agent/shared';
 import { Hand } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { TopBar } from '@/components/layout/top-bar';
+import { useHotkey } from '@/hooks/use-hotkey';
 import { api } from '@/lib/api';
+import { runStatusLabel } from '@/lib/run-view';
 import type { ThreadDetail } from '@/lib/types';
 import { useRunStore } from '@/stores/run-store';
 import { useWorkbenchStore } from '@/stores/workbench-store';
@@ -62,7 +64,7 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
     }
   })();
 
-  const stop = async () => {
+  const stop = useCallback(async () => {
     const runId = chat.currentRunId;
     if (runId) {
       try {
@@ -72,13 +74,23 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
       }
     }
     await chat.stop();
-  };
+  }, [chat]);
+
+  useHotkey({ key: 'Escape' }, stop, chat.isBusy);
+
+  const status = chat.runView.status;
+  const announcement = status
+    ? `运行${runStatusLabel[status]}${waitingHint ? `，${waitingHint}` : ''}`
+    : '';
 
   return (
     <>
       <TopBar title={detail.thread.title || '会话'}>
         {chat.isBusy && <StatusPill status={chat.runView.status ?? 'queued'} />}
       </TopBar>
+      <output aria-live="polite" className="sr-only">
+        {announcement}
+      </output>
       <MessageList messages={chat.messages} isStreaming={chat.isBusy} />
       <div className="shrink-0 px-4 pb-4">
         <div className="mx-auto w-full max-w-3xl">
@@ -93,10 +105,11 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
             onSend={chat.send}
             onStop={stop}
             busy={chat.isBusy}
-            placeholder={chat.isBusy ? '运行中…' : '继续提问或下达新任务'}
+            placeholder={chat.isBusy ? '运行中…（Esc 停止）' : '继续提问或下达新任务'}
           />
           <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
             Agent 可能出错，请核实关键结论。
+            <kbd className="ml-2 rounded border px-1 font-mono text-[10px]">⌘/Ctrl K</kbd> 新任务
           </p>
         </div>
       </div>
