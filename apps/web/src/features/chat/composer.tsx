@@ -38,6 +38,8 @@ export function Composer({
   const setMode = useRunStore((s) => s.setMode);
   const model = useRunStore((s) => s.model);
   const setModel = useRunStore((s) => s.setModel);
+  const autoApprove = useRunStore((s) => s.autoApprove);
+  const setAutoApprove = useRunStore((s) => s.setAutoApprove);
   const models = useQuery({
     queryKey: queryKeys.models,
     queryFn: api.models,
@@ -105,6 +107,23 @@ export function Composer({
             </label>
           </TooltipTrigger>
           <TooltipContent>开启后，Agent 会先展示计划，待你确认后再执行</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <label
+              htmlFor={`${id}-auto-approve`}
+              className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
+            >
+              <Switch
+                id={`${id}-auto-approve`}
+                checked={autoApprove}
+                onCheckedChange={setAutoApprove}
+                aria-label="自动批准工具"
+              />
+              自动批准
+            </label>
+          </TooltipTrigger>
+          <TooltipContent>关闭时，中/高风险工具（如网页抓取）调用前会请求你的批准</TooltipContent>
         </Tooltip>
 
         {models.data && models.data.models.length > 1 && (

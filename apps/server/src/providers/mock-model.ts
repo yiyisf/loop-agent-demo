@@ -189,17 +189,23 @@ export function createMockLanguageModel(opts: MockModelOptions): MockLanguageMod
  */
 export const defaultMockScript: MockScript = (ctx) => {
   switch (ctx.role) {
-    case 'planner':
+    case 'planner': {
+      const task = taskFromPrompt(ctx.lastUserText);
+      const wantsFetch = /https?:\/\/|网页|抓取|fetch|url/i.test(task);
+      const wantsAsk = /问我|询问|先确认|clarif|ask me/i.test(task);
+      const workTools: string[] = [];
+      if (/calculator|计算/.test(task)) workTools.push('calculator');
+      if (wantsFetch) workTools.push('http_fetch');
       return {
         json: {
-          objective: `完成任务：${taskFromPrompt(ctx.lastUserText).slice(0, 120)}`,
+          objective: `完成任务：${task.slice(0, 120)}`,
           steps: [
             {
               id: 'understand',
               title: '理解任务并拆解要点',
               goal: '明确任务范围、关键约束与期望产出。',
               dependsOn: [],
-              tools: [],
+              tools: wantsAsk ? ['ask_user'] : [],
               acceptance: '列出任务要点与产出形式。',
             },
             {
@@ -207,7 +213,7 @@ export const defaultMockScript: MockScript = (ctx) => {
               title: '执行核心工作',
               goal: '基于要点完成主要工作并给出中间结论。',
               dependsOn: ['understand'],
-              tools: ctx.transcript.includes('calculator') ? ['calculator'] : [],
+              tools: workTools,
               acceptance: '得到可验证的中间结果。',
             },
             {
@@ -223,7 +229,47 @@ export const defaultMockScript: MockScript = (ctx) => {
         },
         chunkDelayMs: 10,
       };
+    }
     case 'executor': {
+      // A denial (tool output or a note from a previous attempt) ends the step as failed.
+      if (/"denied":true|User denied tool/.test(ctx.transcript)) {
+        return {
+          text: '用户拒绝了该工具调用，无法继续此步骤。',
+          toolCalls: [
+            {
+              toolName: 'finish_step',
+              input: {
+                status: 'failed',
+                summary: '（mock）用户拒绝了所需的工具调用，步骤无法完成。',
+                artifacts: [],
+              },
+            },
+          ],
+          chunkDelayMs: 15,
+        };
+      }
+      if (ctx.callIndex === 0 && ctx.toolNames.includes('ask_user')) {
+        return {
+          reasoning: '任务存在歧义，先向用户确认偏好。',
+          toolCalls: [
+            {
+              toolName: 'ask_user',
+              input: {
+                question: '你希望结果偏向哪种风格？',
+                options: ['简洁摘要', '详细报告'],
+              },
+            },
+          ],
+          chunkDelayMs: 15,
+        };
+      }
+      if (ctx.callIndex === 0 && ctx.toolNames.includes('http_fetch')) {
+        return {
+          reasoning: '需要抓取网页内容作为依据。',
+          toolCalls: [{ toolName: 'http_fetch', input: { url: 'https://example.com/' } }],
+          chunkDelayMs: 15,
+        };
+      }
       if (ctx.callIndex === 0 && ctx.toolNames.includes('calculator')) {
         return {
           reasoning: '需要先做一个简单计算来验证工具可用。',

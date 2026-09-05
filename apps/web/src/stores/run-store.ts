@@ -21,6 +21,8 @@ interface RunStoreState {
   pendingMessage: { threadId: string; text: string } | null;
   mode: RunMode;
   model: string | undefined;
+  /** Skip approval prompts for medium/high-risk tools. */
+  autoApprove: boolean;
   appendStepLog: (runId: string, stepId: string, kind: 'text' | 'reasoning', delta: string) => void;
   clearStepLogs: (runId: string) => void;
   pushNotice: (level: Notice['level'], message: string) => void;
@@ -28,6 +30,7 @@ interface RunStoreState {
   setPendingMessage: (p: RunStoreState['pendingMessage']) => void;
   setMode: (mode: RunMode) => void;
   setModel: (model: string | undefined) => void;
+  setAutoApprove: (v: boolean) => void;
 }
 
 let noticeSeq = 0;
@@ -38,6 +41,7 @@ export const useRunStore = create<RunStoreState>()((set) => ({
   pendingMessage: null,
   mode: 'auto',
   model: undefined,
+  autoApprove: false,
   appendStepLog: (runId, stepId, kind, delta) =>
     set((s) => {
       const forRun = s.stepLogs[runId] ?? {};
@@ -63,4 +67,5 @@ export const useRunStore = create<RunStoreState>()((set) => ({
   setPendingMessage: (pendingMessage) => set({ pendingMessage }),
   setMode: (mode) => set({ mode }),
   setModel: (model) => set({ model }),
+  setAutoApprove: (autoApprove) => set({ autoApprove }),
 }));

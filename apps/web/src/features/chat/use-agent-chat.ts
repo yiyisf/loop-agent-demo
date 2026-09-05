@@ -22,10 +22,11 @@ export function useAgentChat({ threadId, initialMessages }: UseAgentChatOptions)
   const pushNotice = useRunStore((s) => s.pushNotice);
   const mode = useRunStore((s) => s.mode);
   const model = useRunStore((s) => s.model);
+  const autoApprove = useRunStore((s) => s.autoApprove);
   // useChat only reads the transport when the Chat instance is created, so the
   // composer settings are read through refs to stay current.
-  const settings = useRef({ mode, model });
-  settings.current = { mode, model };
+  const settings = useRef({ mode, model, autoApprove });
+  settings.current = { mode, model, autoApprove };
 
   const currentRunId = useRef<string | undefined>(undefined);
   const runStatus = useRef<RunStatus | undefined>(undefined);
@@ -43,6 +44,7 @@ export function useAgentChat({ threadId, initialMessages }: UseAgentChatOptions)
             messages: messages.slice(-1),
             mode: settings.current.mode,
             model: settings.current.model,
+            toolPolicy: { autoApprove: settings.current.autoApprove },
             ...body,
           },
         }),

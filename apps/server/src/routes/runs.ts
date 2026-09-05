@@ -1,8 +1,17 @@
-import { RUN_ID_HEADER, type Run, TERMINAL_RUN_STATUSES } from '@loop-agent/shared';
+import {
+  ApprovalResponseSchema,
+  PlanConfirmationSchema,
+  QuestionAnswerSchema,
+  RUN_ID_HEADER,
+  type Run,
+  TERMINAL_RUN_STATUSES,
+  validateStepGraph,
+} from '@loop-agent/shared';
 import { createUIMessageStreamResponse } from 'ai';
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../app.js';
+import { waitKeys } from '../runtime/engine/hitl.js';
 import { createRunUIStream } from '../runtime/ui-stream.js';
 
 export function runRoutes(ctx: AppContext) {
@@ -50,6 +59,51 @@ export function runRoutes(ctx: AppContext) {
       stream: createRunUIStream({ bus, run: initial, fromSeq, signal: c.req.raw.signal }),
       headers: { [RUN_ID_HEADER]: runId },
     });
+  });
+
+  /** Shared guard for HITL endpoints: the run must be active and waiting on `key`. */
+  const deliver = async (c: Context, key: string, value: unknown) => {
+    const runId = c.req.param('id') ?? '';
+    await loadRun(runId);
+    if (!runManager.isActive(runId)) throw new HTTPException(409, { message: 'Run is not active' });
+    if (!runManager.hasWaiter(runId, key)) {
+      throw new HTTPException(409, { message: 'Run is not waiting for this decision' });
+    }
+    runManager.resolve(runId, key, value);
+    return c.json({ ok: true });
+  };
+
+  router.post('/:id/approvals/:approvalId', async (c) => {
+    const parsed = ApprovalResponseSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) throw new HTTPException(400, { message: 'Invalid approval response' });
+    return deliver(c, waitKeys.approval(c.req.param('approvalId') ?? ''), parsed.data);
+  });
+
+  router.post('/:id/questions/:questionId', async (c) => {
+    const parsed = QuestionAnswerSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) throw new HTTPException(400, { message: 'Answer is required' });
+    return deliver(c, waitKeys.question(c.req.param('questionId') ?? ''), parsed.data.answer);
+  });
+
+  router.post('/:id/plan/confirm', async (c) => {
+    const parsed = PlanConfirmationSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      throw new HTTPException(400, {
+        message: `Invalid plan confirmation: ${parsed.error.issues
+          .map((i) => `${i.path.join('.')}: ${i.message}`)
+          .join('; ')}`,
+      });
+    }
+    if (parsed.data.action === 'edit') {
+      const validation = validateStepGraph(parsed.data.steps, {
+        availableTools: ctx.tools.plannableNames(),
+        maxSteps: ctx.config.BUDGET_MAX_STEPS,
+      });
+      if (!validation.ok) {
+        throw new HTTPException(400, { message: `计划无效：${validation.errors.join('；')}` });
+      }
+    }
+    return deliver(c, waitKeys.planConfirmation, parsed.data);
   });
 
   router.post('/:id/cancel', async (c) => {

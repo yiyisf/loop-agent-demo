@@ -1,4 +1,5 @@
 import { TERMINAL_RUN_STATUSES } from '@loop-agent/shared';
+import { Hand } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { TopBar } from '@/components/layout/top-bar';
 import { api } from '@/lib/api';
@@ -48,6 +49,19 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
 
   useEffect(() => () => setActive(null, null), [setActive]);
 
+  const waitingHint = (() => {
+    switch (chat.runView.status) {
+      case 'awaiting_plan_confirmation':
+        return 'Agent 已生成计划，等待你确认后开始执行';
+      case 'awaiting_approval':
+        return '有工具调用等待你的审批';
+      case 'awaiting_user':
+        return 'Agent 向你提了一个问题，回答后继续';
+      default:
+        return null;
+    }
+  })();
+
   const stop = async () => {
     const runId = chat.currentRunId;
     if (runId) {
@@ -69,6 +83,12 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
       <div className="shrink-0 px-4 pb-4">
         <div className="mx-auto w-full max-w-3xl">
           <NoticeStack />
+          {chat.isBusy && waitingHint && (
+            <div className="mb-2 flex items-center gap-2 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
+              <Hand className="size-3.5 shrink-0" />
+              {waitingHint}
+            </div>
+          )}
           <Composer
             onSend={chat.send}
             onStop={stop}

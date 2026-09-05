@@ -1,3 +1,4 @@
+import type { PlanConfirmation } from '@loop-agent/shared';
 import type { ModelsInfo, RunSnapshot, ThreadDetail, ThreadListItem, ToolInfo } from './types';
 
 export class ApiError extends Error {
@@ -45,6 +46,21 @@ export const api = {
     }).then((r) => r.thread),
   getRun: (id: string) => request<RunSnapshot>(`/api/runs/${id}`),
   cancelRun: (id: string) => request<{ ok: boolean }>(`/api/runs/${id}/cancel`, { method: 'POST' }),
+  respondApproval: (runId: string, approvalId: string, approved: boolean, reason?: string) =>
+    request<{ ok: boolean }>(`/api/runs/${runId}/approvals/${approvalId}`, {
+      method: 'POST',
+      body: JSON.stringify({ approved, reason: reason?.trim() || undefined }),
+    }),
+  answerQuestion: (runId: string, questionId: string, answer: string) =>
+    request<{ ok: boolean }>(`/api/runs/${runId}/questions/${questionId}`, {
+      method: 'POST',
+      body: JSON.stringify({ answer }),
+    }),
+  confirmPlan: (runId: string, decision: PlanConfirmation) =>
+    request<{ ok: boolean }>(`/api/runs/${runId}/plan/confirm`, {
+      method: 'POST',
+      body: JSON.stringify(decision),
+    }),
   listTools: () => request<{ tools: ToolInfo[] }>('/api/tools').then((r) => r.tools),
   models: () => request<ModelsInfo>('/api/models'),
 };

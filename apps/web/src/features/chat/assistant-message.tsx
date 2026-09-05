@@ -5,8 +5,11 @@ import { Spinner } from '@/components/ui/spinner';
 import { deriveRunView } from '@/lib/run-view';
 import type { AgentUIMessage } from '@/lib/types';
 import { cn, formatDuration, formatTokens } from '@/lib/utils';
+import { ApprovalCard } from './parts/approval-card';
 import { FinalAnswer } from './parts/final-answer';
 import { PlanCard } from './parts/plan-card';
+import { PlanEditor } from './parts/plan-editor';
+import { QuestionCard } from './parts/question-card';
 import { StatusPill } from './parts/status-pill';
 import { ToolCallCard } from './parts/tool-call-card';
 
@@ -20,6 +23,13 @@ export function AssistantMessage({ message, isLatest, isStreaming }: AssistantMe
   const view = useMemo(() => deriveRunView(message), [message]);
   const live = isLatest && isStreaming && !view.isTerminal;
   const [toolsOpen, setToolsOpen] = useState(false);
+  const awaitingPlan = live && view.status === 'awaiting_plan_confirmation' && !!view.plan;
+  // Interaction cards stay clickable only while this run is live.
+  const interactive = live && !!view.runId;
+  const pendingApprovals = view.approvals.filter((a) => a.status === 'pending');
+  const pendingQuestions = view.questions.filter((q) => q.answer === undefined);
+  const resolvedApprovals = view.approvals.filter((a) => a.status !== 'pending');
+  const answeredQuestions = view.questions.filter((q) => q.answer !== undefined);
 
   const duration =
     view.startedAt && (view.endedAt || live)
@@ -50,16 +60,55 @@ export function AssistantMessage({ message, isLatest, isStreaming }: AssistantMe
           </div>
         )}
 
-        {view.plan && (
-          <PlanCard
+        {awaitingPlan && view.plan && view.runId ? (
+          <PlanEditor
+            key={`${view.runId}:${view.plan.revision}`}
+            runId={view.runId}
             plan={view.plan}
-            steps={view.steps}
-            toolCalls={view.toolCalls}
-            diff={view.planDiff}
-            reason={view.planReason}
-            defaultOpen={isLatest}
           />
+        ) : (
+          view.plan && (
+            <PlanCard
+              plan={view.plan}
+              steps={view.steps}
+              toolCalls={view.toolCalls}
+              diff={view.planDiff}
+              reason={view.planReason}
+              defaultOpen={isLatest}
+            />
+          )
         )}
+
+        {(resolvedApprovals.length > 0 || answeredQuestions.length > 0) && (
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="group flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ChevronRight className="size-3.5 transition-transform group-data-[state=open]:rotate-90" />
+                已处理的交互 {resolvedApprovals.length + answeredQuestions.length} 项
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-2 grid gap-2">
+                {resolvedApprovals.map((a) => (
+                  <ApprovalCard key={a.id} approval={a} interactive={false} />
+                ))}
+                {answeredQuestions.map((q) => (
+                  <QuestionCard key={q.id} question={q} interactive={false} />
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {pendingApprovals.map((a) => (
+          <ApprovalCard key={a.id} approval={a} interactive={interactive} />
+        ))}
+        {pendingQuestions.map((q) => (
+          <QuestionCard key={q.id} question={q} interactive={interactive} />
+        ))}
 
         {view.toolCalls.length > 0 && (
           <Collapsible open={toolsOpen || live} onOpenChange={setToolsOpen}>
