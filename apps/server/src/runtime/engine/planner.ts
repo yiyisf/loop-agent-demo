@@ -9,6 +9,7 @@ import { generateObject } from 'ai';
 import { nowIso } from '../../lib/ids.js';
 import { plannerSystemPrompt, plannerUserPrompt } from '../prompts.js';
 import { PlanningError, type RunContext, throwIfAborted, toUsage } from './context.js';
+import { telemetryFor } from './telemetry.js';
 
 export function draftToStep(draft: StepDraft, revision: number): Step {
   return {
@@ -41,6 +42,7 @@ export async function createPlan(ctx: RunContext): Promise<Plan> {
       system: plannerSystemPrompt(promptInput),
       prompt: plannerUserPrompt({ ...promptInput, previousErrors: errors }),
       abortSignal: ctx.signal,
+      telemetry: telemetryFor(ctx.config, 'planner'),
     });
     ctx.emit({ type: 'usage', usage: toUsage(result.usage) });
 

@@ -3,6 +3,7 @@ import { streamText } from 'ai';
 import { finalizerSystemPrompt, finalizerUserPrompt } from '../prompts.js';
 import { RunAbortedError, type RunContext, throwIfAborted, toUsage } from './context.js';
 import { errorMessage } from './executor.js';
+import { telemetryFor } from './telemetry.js';
 
 /** Streams the final answer, emitting `final.text_delta` events; returns the full text. */
 export async function finalize(ctx: RunContext, plan: Plan): Promise<string> {
@@ -12,6 +13,7 @@ export async function finalize(ctx: RunContext, plan: Plan): Promise<string> {
     system: finalizerSystemPrompt(),
     prompt: finalizerUserPrompt(plan, ctx.run.input),
     abortSignal: ctx.signal,
+    telemetry: telemetryFor(ctx.config, 'finalizer'),
   });
 
   let text = '';

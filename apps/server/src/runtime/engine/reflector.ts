@@ -9,6 +9,7 @@ import { generateObject } from 'ai';
 import { reflectorSystemPrompt, reflectorUserPrompt } from '../prompts.js';
 import { type RunContext, throwIfAborted, toUsage } from './context.js';
 import { errorMessage } from './executor.js';
+import { telemetryFor } from './telemetry.js';
 
 export interface ReflectInput {
   plan: Plan;
@@ -29,6 +30,7 @@ export async function reflect(ctx: RunContext, input: ReflectInput): Promise<Ref
       system: reflectorSystemPrompt(promptInput),
       prompt: reflectorUserPrompt(promptInput),
       abortSignal: ctx.signal,
+      telemetry: telemetryFor(ctx.config, 'reflector'),
     });
     ctx.emit({ type: 'usage', usage: toUsage(result.usage) });
     return result.object;

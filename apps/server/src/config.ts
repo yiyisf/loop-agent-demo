@@ -7,6 +7,8 @@ const ConfigSchema = z.object({
   /** libsql URL (`file:...`) or `memory` for an in-process store. */
   DATABASE_URL: z.string().default('file:./data/loop-agent.db'),
   DATA_DIR: z.string().default('./data'),
+  /** When set, the built web app in this directory is served on the same origin. */
+  STATIC_DIR: z.string().optional(),
 
   LLM_PROVIDER: z.enum(['openai', 'openai-compatible', 'anthropic', 'mock']).default('mock'),
   LLM_BASE_URL: z.string().optional(),

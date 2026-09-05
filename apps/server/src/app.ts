@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
@@ -99,6 +101,14 @@ export async function createApp(deps: AppDeps) {
   app.route('/api', metaRoutes(ctx));
   app.route('/api/threads', threadRoutes(ctx));
   app.route('/api/runs', runRoutes(ctx));
+
+  if (config.STATIC_DIR) {
+    const root = path.relative(process.cwd(), path.resolve(config.STATIC_DIR)) || '.';
+    const assets = serveStatic({ root });
+    const spaFallback = serveStatic({ root, path: 'index.html' });
+    app.get('*', (c, next) => (c.req.path.startsWith('/api') ? next() : assets(c, next)));
+    app.get('*', (c, next) => (c.req.path.startsWith('/api') ? next() : spaFallback(c, next)));
+  }
 
   app.notFound((c) => c.json({ error: 'Not found' }, 404));
   app.onError((err, c) => {

@@ -12,6 +12,7 @@ import type { ToolRuntime } from '../tools/types.js';
 import { withApproval } from './approval.js';
 import { RunAbortedError, type RunContext, throwIfAborted, toUsage } from './context.js';
 import { askUser } from './hitl.js';
+import { telemetryFor } from './telemetry.js';
 
 export interface ExecuteStepOptions {
   attemptNote?: string;
@@ -69,6 +70,7 @@ export async function executeStep(
     tools,
     // One extra model call is allowed so the forced finish_step can happen.
     stopWhen: [isStepCount(maxToolCalls + 1), hasToolCall(FINISH_STEP_TOOL)],
+    telemetry: telemetryFor(ctx.config, `executor:${step.id}`),
     prepareStep: ({ stepNumber }) =>
       stepNumber >= maxToolCalls
         ? { toolChoice: { type: 'tool', toolName: FINISH_STEP_TOOL } }
