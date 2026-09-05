@@ -26,6 +26,12 @@ const ConfigSchema = z.object({
     .positive()
     .default(15 * 60_000),
   BUDGET_MAX_TOTAL_TOKENS: z.coerce.number().int().positive().default(300_000),
+  BUDGET_MAX_STEPS: z.coerce.number().int().positive().max(30).default(12),
+  /** Run the reflector after successful steps as well (costs one LLM call per step). */
+  REFLECT_ON_SUCCESS: z
+    .string()
+    .optional()
+    .transform((v) => v === undefined || v === 'true' || v === '1'),
 
   OTEL_ENABLED: z
     .string()

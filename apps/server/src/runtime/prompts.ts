@@ -1,4 +1,4 @@
-import type { Plan, Step } from '@loop-agent/shared';
+import type { Plan, Step, StepResult } from '@loop-agent/shared';
 
 export interface PlannerPromptInput {
   task: string;
@@ -40,9 +40,13 @@ export interface ExecutorPromptInput {
   upstream: Array<{ step: Step; summary: string; artifacts: string[] }>;
   maxToolCalls: number;
   attemptNote?: string;
+  notes?: string[];
 }
 
 export function executorSystemPrompt(input: ExecutorPromptInput): string {
+  const notes = input.notes?.length
+    ? `\n\n## User clarifications\n${input.notes.map((n) => `- ${n.replace(/\n/g, ' ')}`).join('\n')}`
+    : '';
   const upstream =
     input.upstream.length === 0
       ? '(none)'
@@ -66,13 +70,61 @@ Overall objective: ${input.objective}
 - Acceptance: ${input.step.acceptance}
 
 ## Results of upstream steps
-${upstream}
+${upstream}${notes}
 
 ## How to work
 - Use the available tools when they help; you have at most ${input.maxToolCalls} tool calls.
 - Think briefly, act, then verify against the acceptance criterion.
 - When done (or if it is impossible), call \`finish_step\` exactly once with status, and a summary that contains the concrete results (facts, numbers, links, decisions) later steps and the final answer will rely on. Do not write the summary as a narrative of what you did; write the findings.
 - Respond in the language of the objective.${input.attemptNote ? `\n\n${input.attemptNote}` : ''}`;
+}
+
+export interface ReflectorPromptInput {
+  plan: Plan;
+  step: Step;
+  result: StepResult;
+  replansLeft: number;
+  toolsMarkdown: string;
+  notes: string[];
+}
+
+export function reflectorSystemPrompt(input: ReflectorPromptInput): string {
+  return `You are the Reflector of an autonomous agent. After each step finishes you decide how the plan proceeds.
+
+Decide exactly one action:
+- "continue": the plan is still adequate. This is the default when the step succeeded and later steps still make sense.
+- "replan": the plan must change. Provide a minimal patch: "add" new steps, "update" a pending/failed step (goal, tools, dependsOn, acceptance) or "remove" pending steps. Updating a failed step re-runs it. You cannot modify running or succeeded steps. Only use tools from the available list. Replans left: ${input.replansLeft}${input.replansLeft === 0 ? ' (replan is NOT available now, choose another action)' : ''}.
+- "ask_user": only if the task is genuinely ambiguous and no reasonable assumption can be made.
+- "finish_early": the objective is already achieved and remaining steps add no value.
+
+If a step failed and a different approach could work, prefer "replan" over giving up. Keep patches small. Respond with JSON only.
+
+Available tools:
+${input.toolsMarkdown}`;
+}
+
+export function reflectorUserPrompt(input: ReflectorPromptInput): string {
+  const steps = input.plan.steps
+    .map((s) => {
+      const line = `- [${s.status}] ${s.id}: ${s.title}${s.dependsOn.length ? ` (depends on ${s.dependsOn.join(', ')})` : ''}`;
+      const summary = s.result?.summary
+        ? `\n    result: ${truncate(s.result.summary, 400)}`
+        : s.error
+          ? `\n    error: ${truncate(s.error, 300)}`
+          : '';
+      return line + summary;
+    })
+    .join('\n');
+  const notes = input.notes.length
+    ? `\n\nUser clarifications so far:\n${input.notes.map((n) => `- ${n}`).join('\n')}`
+    : '';
+  return `Objective: ${input.plan.objective}
+
+Plan (revision ${input.plan.revision}):
+${steps}
+
+Just finished step "${input.step.id}" with status ${input.result.status}:
+${truncate(input.result.summary, 1500)}${notes}`;
 }
 
 export function finalizerSystemPrompt(): string {

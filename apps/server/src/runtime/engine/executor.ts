@@ -10,6 +10,7 @@ import { executorSystemPrompt } from '../prompts.js';
 import { FINISH_STEP_TOOL } from '../tools/builtin/index.js';
 import type { ToolRuntime } from '../tools/types.js';
 import { RunAbortedError, type RunContext, throwIfAborted, toUsage } from './context.js';
+import { askUser } from './hitl.js';
 
 export interface ExecuteStepOptions {
   attemptNote?: string;
@@ -38,6 +39,7 @@ export async function executeStep(
     signal: ctx.signal,
     config: ctx.config,
     logger: ctx.logger,
+    askUser: (question, options) => askUser(ctx, step.id, question, options),
   };
 
   let tools = ctx.tools.pick([...step.tools, FINISH_STEP_TOOL], rt);
@@ -56,6 +58,7 @@ export async function executeStep(
       upstream,
       maxToolCalls,
       attemptNote: options.attemptNote,
+      notes: ctx.notes,
     }),
     tools,
     // One extra model call is allowed so the forced finish_step can happen.

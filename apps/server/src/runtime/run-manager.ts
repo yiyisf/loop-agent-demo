@@ -61,13 +61,15 @@ export class RunManager {
   private readonly engine: LoopEngine;
 
   constructor(private readonly deps: RunManagerDeps) {
-    this.engine = deps.engine ?? new LoopEngine();
+    this.engine =
+      deps.engine ?? new LoopEngine({ reflectOnSuccess: deps.config.REFLECT_ON_SUCCESS });
   }
 
   budgetFromConfig(overrides: Partial<Budget> = {}): Budget {
     const c = this.deps.config;
     return {
       ...defaultBudget(),
+      maxSteps: c.BUDGET_MAX_STEPS,
       maxReplans: c.BUDGET_MAX_REPLANS,
       maxParallel: c.BUDGET_MAX_PARALLEL,
       maxDurationMs: c.BUDGET_MAX_DURATION_MS,
@@ -121,6 +123,7 @@ export class RunManager {
       signal: controller.signal,
       history: input.history,
       autoApprove: input.autoApprove ?? false,
+      notes: [],
       emit,
       waitFor: <T>(key: string) =>
         new Promise<T>((resolve, reject) => {

@@ -25,6 +25,8 @@ export interface RunContext {
   waitFor<T>(key: string): Promise<T>;
   /** Marks the run as auto-approving high-risk tools. */
   autoApprove: boolean;
+  /** Clarifications gathered from the user during the run (Q/A pairs). */
+  notes: string[];
 }
 
 export function toUsage(u: LanguageModelUsage | undefined, extra: Partial<Usage> = {}): Usage {

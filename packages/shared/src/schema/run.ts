@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BudgetSchema, IsoDateTime, UsageSchema } from './common.js';
-import type { Plan } from './plan.js';
+import { type Plan, StepDraftSchema } from './plan.js';
 
 export const RunStatusSchema = z.enum([
   'queued',
@@ -112,6 +112,26 @@ export interface RunSnapshot {
   toolCalls: ToolCallRecord[];
   lastSeq: number;
 }
+
+/** User decision when a run waits for plan confirmation (mode = plan_first). */
+export const PlanConfirmationSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('confirm') }),
+  z.object({
+    action: z.literal('edit'),
+    steps: z.array(StepDraftSchema).min(1),
+    objective: z.string().optional(),
+  }),
+  z.object({ action: z.literal('cancel'), reason: z.string().optional() }),
+]);
+export type PlanConfirmation = z.infer<typeof PlanConfirmationSchema>;
+
+export const ApprovalResponseSchema = z.object({
+  approved: z.boolean(),
+  reason: z.string().optional(),
+});
+export type ApprovalResponse = z.infer<typeof ApprovalResponseSchema>;
+
+export const QuestionAnswerSchema = z.object({ answer: z.string().min(1) });
 
 /** Request body for starting a run in a thread. */
 export const SendMessageRequestSchema = z.object({
