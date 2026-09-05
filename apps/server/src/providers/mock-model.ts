@@ -192,7 +192,7 @@ export const defaultMockScript: MockScript = (ctx) => {
     case 'planner':
       return {
         json: {
-          objective: `完成任务：${ctx.lastUserText.slice(0, 120)}`,
+          objective: `完成任务：${taskFromPrompt(ctx.lastUserText).slice(0, 120)}`,
           steps: [
             {
               id: 'understand',
@@ -268,6 +268,11 @@ export const defaultMockScript: MockScript = (ctx) => {
       };
   }
 };
+
+function taskFromPrompt(prompt: string): string {
+  const m = /Task:\n([\s\S]*?)(?:\n\n|$)/.exec(prompt);
+  return (m?.[1] ?? prompt).trim();
+}
 
 function summarizeGoal(systemText: string): string {
   const m = systemText.match(/目标[:：]\s*(.+)/) ?? systemText.match(/Goal[:：]\s*(.+)/i);

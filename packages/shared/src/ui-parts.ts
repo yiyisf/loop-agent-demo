@@ -6,7 +6,7 @@ import type { Approval, RunStatus, UserQuestion } from './schema/run.js';
  * Custom `data-*` parts streamed to the UI (AI SDK UI Message Stream).
  * Keys map to chunk types `data-<key>`.
  */
-export interface LoopAgentDataParts {
+export type LoopAgentDataParts = {
   /** Latest run status; single part with id "run", reconciled on update. */
   run: {
     runId: string;
@@ -54,7 +54,7 @@ export interface LoopAgentDataParts {
     level: 'info' | 'warn' | 'error';
     message: string;
   };
-}
+};
 
 export type LoopAgentDataPartType = `data-${keyof LoopAgentDataParts & string}`;
 

@@ -13,7 +13,7 @@ export function metaRoutes(ctx: AppContext) {
     }),
   );
 
-  router.get('/tools', (c) => c.json({ tools: [] as unknown[] }));
+  router.get('/tools', (c) => c.json({ tools: ctx.tools.list() }));
 
   return router;
 }
