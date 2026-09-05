@@ -3,7 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModel } from 'ai';
 import type { AppConfig } from '../config.js';
-import { createMockLanguageModel, type MockScript } from './mock-model.js';
+import { createMockLanguageModel, defaultMockScript, type MockScript } from './mock-model.js';
 
 export type ModelRole = 'planner' | 'executor' | 'reflector' | 'finalizer' | 'titler' | 'default';
 
@@ -63,8 +63,15 @@ function createFactory(
       return (id) => anthropic(id);
     }
     case 'mock': {
-      return (id, role) =>
-        createMockLanguageModel({ modelId: id, role, script: options.mockScript });
+      const base = options.mockScript ?? defaultMockScript;
+      const script: MockScript =
+        config.MOCK_DELAY_MS > 0
+          ? async (ctx) => {
+              await new Promise((r) => setTimeout(r, config.MOCK_DELAY_MS));
+              return base(ctx);
+            }
+          : base;
+      return (id, role) => createMockLanguageModel({ modelId: id, role, script });
     }
   }
 }

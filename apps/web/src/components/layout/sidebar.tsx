@@ -162,7 +162,12 @@ export function Sidebar() {
                     )}
                     <span className="min-w-0 truncate">{t.title || '未命名会话'}</span>
                   </Link>
-                  <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                  <div
+                    className={cn(
+                      'absolute top-1/2 right-1 flex -translate-y-1/2 items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100',
+                      params.threadId === t.id && 'opacity-100',
+                    )}
+                  >
                     <Button
                       type="button"
                       variant="ghost"

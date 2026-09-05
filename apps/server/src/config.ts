@@ -15,6 +15,8 @@ const ConfigSchema = z.object({
   LLM_PLANNER_MODEL: z.string().optional(),
   LLM_EXECUTOR_MODEL: z.string().optional(),
   LLM_MODELS: z.string().optional(),
+  /** Extra latency per mock model call (demo pacing when LLM_PROVIDER=mock). */
+  MOCK_DELAY_MS: z.coerce.number().int().nonnegative().default(0),
 
   SEARCH_PROVIDER: z.enum(['tavily', 'exa', 'brave', 'none']).default('none'),
   SEARCH_API_KEY: z.string().optional(),
