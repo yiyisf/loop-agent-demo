@@ -765,6 +765,12 @@ loop-agent-demo/
 
 每个阶段独立可运行、可验证、可提交；阶段内按顺序完成任务清单后提交。
 
+**实施状态**：阶段 1–7 已完成并合入基础版。与设计的主要偏差：
+
+- 成本估算（按模型单价表）未实现，工作台仅展示 token / 调用次数 / 耗时。
+- OTel 仅提供 `OTEL_ENABLED` 开关与 `functionId` 标注，未内置 exporter；需接入方在进程内注册 OpenTelemetry SDK。
+- mock 模型内置了 HITL 演示场景（关键词触发 `http_fetch` 审批 / `ask_user`），用于离线演示与 E2E。
+
 ### 阶段 1：脚手架与契约
 
 **目标**：Monorepo 可运行，前后端壳子联通，共享契约就位，mock 模型可用。
