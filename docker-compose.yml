@@ -1,0 +1,23 @@
+services:
+  loop-agent:
+    build: .
+    image: loop-agent:local
+    ports:
+      - "3001:3001"
+    environment:
+      # Defaults to the offline mock model; switch to a real provider here.
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1}
+      LLM_MODELS: ${LLM_MODELS:-}
+      SEARCH_PROVIDER: ${SEARCH_PROVIDER:-none}
+      SEARCH_API_KEY: ${SEARCH_API_KEY:-}
+      MOCK_DELAY_MS: ${MOCK_DELAY_MS:-0}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - loop-agent-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  loop-agent-data:
