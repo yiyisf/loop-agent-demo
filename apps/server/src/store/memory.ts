@@ -1,8 +1,15 @@
-import { type Run, type RunEvent, TERMINAL_RUN_STATUSES, type Thread } from '@loop-agent/shared';
+import {
+  type Approval,
+  type Run,
+  type RunEvent,
+  TERMINAL_RUN_STATUSES,
+  type Thread,
+} from '@loop-agent/shared';
 import { newId, nowIso } from '../lib/ids.js';
 import type { RunSnapshot } from '../runtime/projections.js';
 import type { LoopAgentUIMessage } from '../runtime/ui-stream.js';
-import type { RunStore, Stores, ThreadStore } from './types.js';
+import { applyApprovalEvent } from './approvals.js';
+import type { RunStore, StoredArtifact, Stores, ThreadStore } from './types.js';
 
 export class MemoryThreadStore implements ThreadStore {
   private threads = new Map<string, Thread>();
@@ -63,6 +70,8 @@ export class MemoryRunStore implements RunStore {
   private runs = new Map<string, Run>();
   private snapshots = new Map<string, RunSnapshot>();
   private eventsByRun = new Map<string, RunEvent[]>();
+  private approvalsById = new Map<string, Approval>();
+  private artifactsById = new Map<string, StoredArtifact>();
 
   async create(run: Run): Promise<void> {
     this.runs.set(run.id, structuredClone(run));
@@ -98,6 +107,34 @@ export class MemoryRunStore implements RunStore {
     const list = this.eventsByRun.get(event.runId);
     if (list) list.push(event);
     else this.eventsByRun.set(event.runId, [event]);
+    applyApprovalEvent(this.approvalsById, event);
+  }
+
+  async approvals(runId: string): Promise<Approval[]> {
+    return [...this.approvalsById.values()]
+      .filter((a) => a.runId === runId)
+      .map((a) => structuredClone(a));
+  }
+
+  async listPendingApprovals(): Promise<Approval[]> {
+    return [...this.approvalsById.values()]
+      .filter((a) => a.status === 'pending')
+      .map((a) => structuredClone(a));
+  }
+
+  async saveArtifact(artifact: StoredArtifact): Promise<void> {
+    this.artifactsById.set(artifact.id, structuredClone(artifact));
+  }
+
+  async artifacts(runId: string): Promise<StoredArtifact[]> {
+    return [...this.artifactsById.values()]
+      .filter((a) => a.runId === runId)
+      .map((a) => structuredClone(a));
+  }
+
+  async getArtifact(id: string): Promise<StoredArtifact | undefined> {
+    const a = this.artifactsById.get(id);
+    return a ? structuredClone(a) : undefined;
   }
 
   async events(runId: string, fromSeq = 0, limit = 1000): Promise<RunEvent[]> {

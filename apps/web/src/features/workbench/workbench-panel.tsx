@@ -80,6 +80,7 @@ export function WorkbenchPanel() {
             </div>
             {selected ? (
               <StepDetail
+                runId={view.runId}
                 step={selected}
                 toolCalls={view.toolCalls.filter((t) => t.stepId === selected.id)}
                 log={stepLogs?.[selected.id]}

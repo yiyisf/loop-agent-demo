@@ -1,6 +1,11 @@
-import type { Run, RunEvent, Thread } from '@loop-agent/shared';
+import type { Approval, Artifact, Run, RunEvent, Thread } from '@loop-agent/shared';
 import type { RunSnapshot } from '../runtime/projections.js';
 import type { LoopAgentUIMessage } from '../runtime/ui-stream.js';
+
+/** Artifact metadata plus the absolute path of its file on disk. */
+export interface StoredArtifact extends Artifact {
+  path: string;
+}
 
 export interface ThreadStore {
   create(title?: string): Promise<Thread>;
@@ -25,6 +30,15 @@ export interface RunStore {
   events(runId: string, fromSeq?: number, limit?: number): Promise<RunEvent[]>;
   /** Runs that never reached a terminal status (e.g. interrupted by a restart). */
   listUnfinished(): Promise<Run[]>;
+
+  /** Approvals are projected from `approval.*` events so they survive restarts. */
+  approvals(runId: string): Promise<Approval[]>;
+  /** Approvals still waiting for a decision across all runs. */
+  listPendingApprovals(): Promise<Approval[]>;
+
+  saveArtifact(artifact: StoredArtifact): Promise<void>;
+  artifacts(runId: string): Promise<StoredArtifact[]>;
+  getArtifact(id: string): Promise<StoredArtifact | undefined>;
 }
 
 export interface Stores {

@@ -22,6 +22,23 @@ export async function recoverInterruptedRuns(stores: Stores, logger: Logger): Pr
       const ts = nowIso();
       const extra: RunEvent[] = [];
 
+      // Decisions that were still pending can no longer be acted on: close them
+      // out explicitly so the approvals table and history agree.
+      const pendingApprovals = (await stores.runs.approvals(run.id)).filter(
+        (a) => a.status === 'pending',
+      );
+      for (const approval of pendingApprovals) {
+        extra.push({
+          type: 'approval.resolved',
+          approvalId: approval.id,
+          approved: false,
+          reason: SERVER_RESTART_REASON,
+          runId: run.id,
+          seq: ++seq,
+          ts,
+        });
+      }
+
       for (const step of state.steps) {
         if (
           step.status === 'running' ||
@@ -44,7 +61,10 @@ export async function recoverInterruptedRuns(stores: Stores, logger: Logger): Pr
       extra.push({
         type: 'run.status',
         status: 'failed',
-        reason: SERVER_RESTART_REASON,
+        reason:
+          pendingApprovals.length > 0
+            ? `${SERVER_RESTART_REASON} (${pendingApprovals.length} approval(s) were still pending)`
+            : SERVER_RESTART_REASON,
         runId: run.id,
         seq: ++seq,
         ts,

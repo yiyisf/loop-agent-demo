@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import {
   ApprovalResponseSchema,
   PlanConfirmationSchema,
@@ -43,6 +44,41 @@ export function runRoutes(ctx: AppContext) {
     const buffered = bus.has(runId) ? bus.buffered(runId, fromSeq) : null;
     const events = buffered ?? (await stores.runs.events(runId, fromSeq, limit));
     return c.json({ events: events.slice(0, limit), active: runManager.isActive(runId) });
+  });
+
+  router.get('/:id/artifacts', async (c) => {
+    const runId = c.req.param('id');
+    await loadRun(runId);
+    const artifacts = (await stores.runs.artifacts(runId)).map(({ path: _path, ...a }) => a);
+    return c.json({ artifacts });
+  });
+
+  router.get('/:id/artifacts/:artifactId', async (c) => {
+    const runId = c.req.param('id');
+    const artifact = await stores.runs.getArtifact(c.req.param('artifactId') ?? '');
+    if (!artifact || artifact.runId !== runId) {
+      throw new HTTPException(404, { message: 'Artifact not found' });
+    }
+    let body: Buffer;
+    try {
+      body = await readFile(artifact.path);
+    } catch {
+      throw new HTTPException(410, { message: 'Artifact file is no longer available' });
+    }
+    const disposition = c.req.query('download') !== undefined ? 'attachment' : 'inline';
+    // Model-authored markup must never execute on the app origin.
+    const contentType = /^(text\/html|application\/(xhtml\+xml|javascript))/i.test(artifact.mime)
+      ? 'text/plain; charset=utf-8'
+      : artifact.mime;
+    return new Response(new Uint8Array(body), {
+      headers: {
+        'content-type': contentType,
+        'x-content-type-options': 'nosniff',
+        'content-length': String(body.byteLength),
+        'content-disposition': `${disposition}; filename*=UTF-8''${encodeURIComponent(artifact.name)}`,
+        'cache-control': 'private, max-age=3600',
+      },
+    });
   });
 
   router.get('/:id/stream', async (c) => {

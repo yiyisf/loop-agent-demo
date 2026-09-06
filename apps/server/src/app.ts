@@ -54,6 +54,7 @@ export async function createApp(deps: AppDeps) {
     bus,
     models: modelProvider,
     tools,
+    artifactPersistence: stores.runs,
     onRunCreated: (run) => stores.runs.create(run),
     onRunFinished: async (snapshot) => {
       const { run } = snapshot;

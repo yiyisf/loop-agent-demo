@@ -74,6 +74,39 @@ export const events = sqliteTable(
   (t) => [uniqueIndex('events_run_seq_idx').on(t.runId, t.seq)],
 );
 
+export const approvals = sqliteTable(
+  'approvals',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id').notNull(),
+    stepId: text('step_id').notNull(),
+    toolCallId: text('tool_call_id').notNull(),
+    toolName: text('tool_name').notNull(),
+    input: text('input', { mode: 'json' }),
+    reason: text('reason'),
+    status: text('status').notNull(),
+    resolution: text('resolution'),
+    createdAt: text('created_at').notNull(),
+    resolvedAt: text('resolved_at'),
+  },
+  (t) => [index('approvals_run_idx').on(t.runId), index('approvals_status_idx').on(t.status)],
+);
+
+export const artifacts = sqliteTable(
+  'artifacts',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id').notNull(),
+    stepId: text('step_id').notNull(),
+    name: text('name').notNull(),
+    mime: text('mime').notNull(),
+    size: integer('size').notNull(),
+    path: text('path').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('artifacts_run_idx').on(t.runId)],
+);
+
 /**
  * Idempotent DDL applied on startup. Kept in code (instead of drizzle-kit
  * migration files) so the server has no runtime dependency on a migrations
@@ -138,4 +171,30 @@ export const MIGRATIONS: string[] = [
     ts TEXT NOT NULL
   )`,
   'CREATE UNIQUE INDEX IF NOT EXISTS events_run_seq_idx ON events (run_id, seq)',
+  `CREATE TABLE IF NOT EXISTS approvals (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    step_id TEXT NOT NULL,
+    tool_call_id TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    input TEXT,
+    reason TEXT,
+    status TEXT NOT NULL,
+    resolution TEXT,
+    created_at TEXT NOT NULL,
+    resolved_at TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS approvals_run_idx ON approvals (run_id)',
+  'CREATE INDEX IF NOT EXISTS approvals_status_idx ON approvals (status)',
+  `CREATE TABLE IF NOT EXISTS artifacts (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    step_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    path TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+  'CREATE INDEX IF NOT EXISTS artifacts_run_idx ON artifacts (run_id)',
 ];

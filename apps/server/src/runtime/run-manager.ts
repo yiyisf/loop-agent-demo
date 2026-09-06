@@ -13,7 +13,7 @@ import type { AppConfig } from '../config.js';
 import { newId, nowIso } from '../lib/ids.js';
 import type { Logger } from '../lib/logger.js';
 import type { ModelProvider } from '../providers/model-provider.js';
-import { ArtifactStore } from './artifacts.js';
+import { type ArtifactPersistence, ArtifactStore } from './artifacts.js';
 import type { RunContext } from './engine/context.js';
 import { LoopEngine } from './engine/loop-engine.js';
 import type { EventBus } from './event-bus.js';
@@ -51,6 +51,8 @@ export interface RunManagerDeps {
   models: ModelProvider;
   tools: ToolRegistry;
   engine?: LoopEngine;
+  /** Persists artifact metadata so files under DATA_DIR stay discoverable after restarts. */
+  artifactPersistence?: ArtifactPersistence;
   /** Called once the run record exists, before the engine starts (persist it here). */
   onRunCreated?: (run: Run) => void | Promise<void>;
   /** Called with the final projection when a run reaches a terminal state. */
@@ -106,7 +108,9 @@ export class RunManager {
 
     const workspaceDir = path.resolve(config.DATA_DIR, 'runs', run.id, 'workspace');
     await mkdir(workspaceDir, { recursive: true });
-    const artifacts = new ArtifactStore(run.id, path.resolve(config.DATA_DIR, 'runs', run.id));
+    const artifacts = new ArtifactStore(run.id, path.resolve(config.DATA_DIR, 'runs', run.id), {
+      persistence: this.deps.artifactPersistence,
+    });
 
     const emit = (payload: RunEventPayload) => {
       const event = bus.append(run.id, payload);

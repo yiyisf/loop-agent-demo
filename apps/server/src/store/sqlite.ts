@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { type Client, createClient } from '@libsql/client';
 import {
+  type Approval,
   type Budget,
   type Run,
   type RunEvent,
@@ -14,8 +15,9 @@ import { and, asc, desc, eq, gt, inArray, notInArray } from 'drizzle-orm';
 import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
 import { newId, nowIso } from '../lib/ids.js';
 import type { LoopAgentUIMessage } from '../runtime/ui-stream.js';
+import { applyApprovalEvent } from './approvals.js';
 import * as schema from './schema.js';
-import type { RunStore, Stores, ThreadStore } from './types.js';
+import type { RunStore, StoredArtifact, Stores, ThreadStore } from './types.js';
 
 type Db = LibSQLDatabase<typeof schema>;
 
@@ -64,6 +66,8 @@ export class SqliteThreadStore implements ThreadStore {
       if (runIds.length > 0) {
         await tx.delete(schema.events).where(inArray(schema.events.runId, runIds));
         await tx.delete(schema.planRevisions).where(inArray(schema.planRevisions.runId, runIds));
+        await tx.delete(schema.approvals).where(inArray(schema.approvals.runId, runIds));
+        await tx.delete(schema.artifacts).where(inArray(schema.artifacts.runId, runIds));
         await tx.delete(schema.runs).where(inArray(schema.runs.id, runIds));
       }
       await tx.delete(schema.messages).where(eq(schema.messages.threadId, id));
@@ -219,6 +223,18 @@ export class SqliteRunStore implements RunStore {
           createdAt: e.ts,
         };
       });
+    // Approval rows: requests in this batch are inserted whole; resolutions of
+    // earlier requests become updates.
+    const requested = new Map<string, Approval>();
+    const resolutions: Extract<RunEvent, { type: 'approval.resolved' }>[] = [];
+    for (const e of batch) {
+      if (e.type === 'approval.requested') applyApprovalEvent(requested, e);
+      else if (e.type === 'approval.resolved') {
+        if (requested.has(e.approvalId)) applyApprovalEvent(requested, e);
+        else resolutions.push(e);
+      }
+    }
+
     await this.db.transaction(async (tx) => {
       await tx
         .insert(schema.events)
@@ -232,7 +248,63 @@ export class SqliteRunStore implements RunStore {
       if (revisions.length > 0) {
         await tx.insert(schema.planRevisions).values(revisions).onConflictDoNothing();
       }
+      if (requested.size > 0) {
+        await tx
+          .insert(schema.approvals)
+          .values([...requested.values()].map(approvalToRow))
+          .onConflictDoNothing();
+      }
+      for (const r of resolutions) {
+        await tx
+          .update(schema.approvals)
+          .set({
+            status: r.approved ? 'approved' : 'denied',
+            resolution: r.reason ?? null,
+            resolvedAt: r.ts,
+          })
+          .where(eq(schema.approvals.id, r.approvalId));
+      }
     });
+  }
+
+  async approvals(runId: string): Promise<Approval[]> {
+    await this.flush();
+    const rows = await this.db
+      .select()
+      .from(schema.approvals)
+      .where(eq(schema.approvals.runId, runId))
+      .orderBy(asc(schema.approvals.createdAt));
+    return rows.map(rowToApproval);
+  }
+
+  async listPendingApprovals(): Promise<Approval[]> {
+    await this.flush();
+    const rows = await this.db
+      .select()
+      .from(schema.approvals)
+      .where(eq(schema.approvals.status, 'pending'))
+      .orderBy(asc(schema.approvals.createdAt));
+    return rows.map(rowToApproval);
+  }
+
+  async saveArtifact(artifact: StoredArtifact): Promise<void> {
+    await this.db
+      .insert(schema.artifacts)
+      .values(artifact)
+      .onConflictDoUpdate({ target: schema.artifacts.id, set: artifact });
+  }
+
+  async artifacts(runId: string): Promise<StoredArtifact[]> {
+    return this.db
+      .select()
+      .from(schema.artifacts)
+      .where(eq(schema.artifacts.runId, runId))
+      .orderBy(asc(schema.artifacts.createdAt));
+  }
+
+  async getArtifact(id: string): Promise<StoredArtifact | undefined> {
+    const rows = await this.db.select().from(schema.artifacts).where(eq(schema.artifacts.id, id));
+    return rows[0];
   }
 
   async events(runId: string, fromSeq = 0, limit = 1000): Promise<RunEvent[]> {
@@ -270,6 +342,39 @@ export class SqliteRunStore implements RunStore {
 }
 
 type RunRow = typeof schema.runs.$inferSelect;
+type ApprovalRow = typeof schema.approvals.$inferSelect;
+
+function approvalToRow(a: Approval): ApprovalRow {
+  return {
+    id: a.id,
+    runId: a.runId,
+    stepId: a.stepId,
+    toolCallId: a.toolCallId,
+    toolName: a.toolName,
+    input: a.input ?? null,
+    reason: a.reason ?? null,
+    status: a.status,
+    resolution: a.resolution ?? null,
+    createdAt: a.createdAt,
+    resolvedAt: a.resolvedAt ?? null,
+  };
+}
+
+function rowToApproval(r: ApprovalRow): Approval {
+  return {
+    id: r.id,
+    runId: r.runId,
+    stepId: r.stepId,
+    toolCallId: r.toolCallId,
+    toolName: r.toolName,
+    input: r.input ?? undefined,
+    reason: r.reason ?? undefined,
+    status: r.status as Approval['status'],
+    resolution: r.resolution ?? undefined,
+    createdAt: r.createdAt,
+    resolvedAt: r.resolvedAt ?? undefined,
+  };
+}
 
 function runToRow(run: Run): Omit<RunRow, 'snapshot'> {
   return {

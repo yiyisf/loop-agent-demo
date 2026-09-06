@@ -1,21 +1,33 @@
 import type { Step, ToolCallRecord } from '@loop-agent/shared';
-import { Brain } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Brain, Download, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { StepStatusIcon } from '@/features/chat/parts/step-status-icon';
 import { ToolCallCard } from '@/features/chat/parts/tool-call-card';
+import { api, queryKeys } from '@/lib/api';
 import { stepStatusLabel } from '@/lib/run-view';
-import { formatDuration } from '@/lib/utils';
+import { formatBytes, formatDuration } from '@/lib/utils';
 import type { StepLog } from '@/stores/run-store';
 
 export function StepDetail({
+  runId,
   step,
   toolCalls,
   log,
 }: {
+  runId: string | undefined;
   step: Step;
   toolCalls: ToolCallRecord[];
   log: StepLog | undefined;
 }) {
+  const artifactIds = step.result?.artifacts ?? [];
+  const artifacts = useQuery({
+    queryKey: queryKeys.runArtifacts(runId ?? ''),
+    queryFn: () => api.getRunArtifacts(runId ?? ''),
+    enabled: Boolean(runId) && artifactIds.length > 0,
+    staleTime: 60_000,
+  });
+  const stepArtifacts = (artifacts.data ?? []).filter((a) => artifactIds.includes(a.id));
   const duration =
     step.startedAt &&
     formatDuration(
@@ -99,6 +111,37 @@ export function StepDetail({
             </div>
             <p className="whitespace-pre-wrap text-xs">{step.result.summary}</p>
           </div>
+        </Section>
+      )}
+      {runId && stepArtifacts.length > 0 && (
+        <Section title="产物">
+          <ul className="grid gap-1">
+            {stepArtifacts.map((a) => (
+              <li
+                key={a.id}
+                className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs"
+              >
+                <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                <a
+                  href={api.artifactUrl(runId, a.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="min-w-0 flex-1 truncate font-mono hover:underline"
+                  title={a.name}
+                >
+                  {a.name}
+                </a>
+                <span className="shrink-0 text-muted-foreground">{formatBytes(a.size)}</span>
+                <a
+                  href={api.artifactUrl(runId, a.id, true)}
+                  aria-label={`下载 ${a.name}`}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <Download className="size-3.5" />
+                </a>
+              </li>
+            ))}
+          </ul>
         </Section>
       )}
       {step.error && !step.result && (

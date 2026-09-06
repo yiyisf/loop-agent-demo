@@ -6,7 +6,7 @@ import pino from 'pino';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
 import { loadConfig } from '../config.js';
-import { defaultMockScript } from '../providers/mock-model.js';
+import { defaultMockScript, type MockScript } from '../providers/mock-model.js';
 import { createModelProvider } from '../providers/model-provider.js';
 import { SERVER_RESTART_REASON } from '../runtime/recovery.js';
 import { createSqliteStores } from './sqlite.js';
@@ -18,16 +18,18 @@ afterEach(async () => {
   dataDir = undefined;
 });
 
-async function boot(dir: string) {
+async function boot(dir: string, script: MockScript = defaultMockScript) {
   const config = loadConfig({
     LLM_PROVIDER: 'mock',
     DATA_DIR: dir,
     DATABASE_URL: `file:${path.join(dir, 'test.db')}`,
     LOG_LEVEL: 'silent',
   });
-  const modelProvider = createModelProvider(config, { mockScript: defaultMockScript });
+  const modelProvider = createModelProvider(config, { mockScript: script });
   return createApp({ config, logger, modelProvider });
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 describe('SQLite persistence', () => {
   it('survives a server restart: threads, messages, snapshots and events are reloaded', async () => {
@@ -81,6 +83,92 @@ describe('SQLite persistence', () => {
     // A finished run that is no longer buffered has nothing to resume.
     const stream = await second.app.request(`/api/runs/${runId}/stream`);
     expect(stream.status).toBe(204);
+    await second.close();
+  });
+
+  it('persists approvals and artifacts so they can be queried and served after a restart', async () => {
+    dataDir = await mkdtemp(path.join(os.tmpdir(), 'loop-agent-sqlite-'));
+
+    // Executor writes a file (artifact) in the first step and fetches a URL
+    // (approval) in the second; everything else follows the default demo.
+    const script: MockScript = async (ctx) => {
+      if (ctx.role === 'planner') {
+        const reply = await defaultMockScript(ctx);
+        const plan = reply.json as { steps: Array<{ id: string; tools: string[] }> };
+        plan.steps.find((s) => s.id === 'understand')!.tools = ['workspace_write'];
+        return reply;
+      }
+      if (
+        ctx.role === 'executor' &&
+        ctx.callIndex === 0 &&
+        ctx.toolNames.includes('workspace_write')
+      ) {
+        return {
+          toolCalls: [
+            { toolName: 'workspace_write', input: { path: 'notes.md', content: '# hello\n' } },
+          ],
+        };
+      }
+      return defaultMockScript(ctx);
+    };
+
+    const first = await boot(dataDir, script);
+    const created = await first.app.request('/api/threads', { method: 'POST', body: '{}' });
+    const { thread } = (await created.json()) as { thread: { id: string } };
+    const res = await first.app.request(`/api/threads/${thread.id}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: '抓取 https://example.com/ 并总结' }),
+    });
+    const runId = res.headers.get('x-run-id')!;
+    void res.text();
+
+    // Wait for the approval request, then check it is visible in the store as pending.
+    let approvalId: string | undefined;
+    for (let i = 0; i < 300 && !approvalId; i++) {
+      approvalId = first.ctx.runManager.get(runId)?.approvals[0]?.id;
+      if (!approvalId) await sleep(20);
+    }
+    expect(approvalId).toBeTruthy();
+    const pending = await first.ctx.stores.runs.listPendingApprovals();
+    expect(pending).toEqual([
+      expect.objectContaining({ id: approvalId, runId, status: 'pending' }),
+    ]);
+
+    await first.app.request(`/api/runs/${runId}/approvals/${approvalId}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ approved: true }),
+    });
+    await first.ctx.runManager.wait(runId);
+    await first.close();
+
+    const second = await boot(dataDir);
+    const approvals = await second.ctx.stores.runs.approvals(runId);
+    expect(approvals).toHaveLength(1);
+    expect(approvals[0]).toMatchObject({
+      id: approvalId,
+      toolName: 'http_fetch',
+      status: 'approved',
+    });
+    expect(approvals[0]!.resolvedAt).toBeTruthy();
+    expect(await second.ctx.stores.runs.listPendingApprovals()).toEqual([]);
+
+    const listRes = await second.app.request(`/api/runs/${runId}/artifacts`);
+    const { artifacts } = (await listRes.json()) as {
+      artifacts: Array<{ id: string; name: string; mime: string; path?: string }>;
+    };
+    expect(artifacts).toHaveLength(1);
+    expect(artifacts[0]).toMatchObject({ name: 'notes.md', mime: 'text/markdown' });
+    expect(artifacts[0]!.path).toBeUndefined();
+
+    const fileRes = await second.app.request(`/api/runs/${runId}/artifacts/${artifacts[0]!.id}`);
+    expect(fileRes.status).toBe(200);
+    expect(fileRes.headers.get('content-type')).toContain('text/markdown');
+    expect(await fileRes.text()).toBe('# hello\n');
+
+    const wrongRun = await second.app.request(`/api/runs/run_other/artifacts/${artifacts[0]!.id}`);
+    expect(wrongRun.status).toBe(404);
     await second.close();
   });
 
