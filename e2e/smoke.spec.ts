@@ -74,7 +74,7 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByText('已完成').first()).toBeVisible();
 
     await page.getByRole('button', { name: '重新生成' }).click();
-    await expect(page.getByText('计算 (12+30)*2 并说明过程')).toHaveCount(2);
+    await expect(page.getByTestId('user-message')).toHaveCount(2);
     await expect(page.getByRole('heading', { name: '结论' })).toHaveCount(2, { timeout: 45_000 });
     await expect(page.getByRole('button', { name: '重新生成' })).toHaveCount(1);
   });
@@ -89,7 +89,7 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByRole('button', { name: '重试' })).toBeVisible({ timeout: 45_000 });
 
     await page.getByRole('button', { name: '重试' }).click();
+    await expect(page.getByTestId('user-message')).toHaveCount(2);
     await expect(page.getByText('工具审批')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText('抓取 https://example.com/ 的网页并总结')).toHaveCount(2);
   });
 });
