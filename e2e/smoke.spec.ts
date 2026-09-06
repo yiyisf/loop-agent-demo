@@ -25,7 +25,9 @@ test.describe('loop-agent smoke', () => {
     // Sidebar lists the thread under today's group with a generated title.
     await expect(page.getByText('今天')).toBeVisible();
     // CI retries reuse the in-memory store, so earlier attempts may leave extra threads.
-    await expect(page.getByRole('navigation').getByRole('link', { name: /计算/ }).first()).toBeVisible();
+    await expect(
+      page.getByRole('navigation').getByRole('link', { name: /计算/ }).first(),
+    ).toBeVisible();
 
     // Cmd/Ctrl+K jumps back to the new-task page and focuses the composer.
     await page.keyboard.press('ControlOrMeta+k');
