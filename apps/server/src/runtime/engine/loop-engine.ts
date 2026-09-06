@@ -25,7 +25,10 @@ import { createPlan, draftToStep } from './planner.js';
 import { reflect } from './reflector.js';
 
 export interface LoopEngineOptions {
-  /** Run the reflector after successful steps too (not only after failures). */
+  /**
+   * Consult the model after every successful step. By default successes use the
+   * rule-based reflector unless their summary carries uncertainty signals.
+   */
   reflectOnSuccess?: boolean;
 }
 
@@ -54,7 +57,27 @@ export class LoopEngine {
       }
 
       ctx.emit({ type: 'run.status', status: 'executing' });
-      await this.executeLoop(ctx, guard);
+      let budgetFailure: string | undefined;
+      try {
+        await this.executeLoop(ctx, guard);
+      } catch (err) {
+        if (!(err instanceof BudgetExceededError)) throw err;
+        // Budget exhaustion keeps completed work: skip what is left and let the
+        // finalizer summarise on a best-effort basis before failing the run.
+        budgetFailure = err.message;
+        ctx.emit({ type: 'error', message: err.message, fatal: false });
+        for (const s of ctx.state.steps) {
+          if (s.status === 'pending' || s.status === 'ready') {
+            ctx.emit({
+              type: 'step.status',
+              stepId: s.id,
+              status: 'skipped',
+              attempt: s.attempt,
+              error: 'Budget exhausted',
+            });
+          }
+        }
+      }
 
       const currentPlan = ctx.state.plan!;
       const failed = currentPlan.steps.filter(
@@ -62,10 +85,12 @@ export class LoopEngine {
       );
 
       ctx.emit({ type: 'run.status', status: 'finalizing' });
-      const answer = await finalize(ctx, currentPlan);
+      const answer = await finalize(ctx, currentPlan, budgetFailure);
       ctx.emit({ type: 'final.done', answer });
 
-      if (failed.length > 0) {
+      if (budgetFailure) {
+        ctx.emit({ type: 'run.status', status: 'failed', reason: budgetFailure });
+      } else if (failed.length > 0) {
         ctx.emit({
           type: 'run.status',
           status: 'failed',
@@ -181,18 +206,20 @@ export class LoopEngine {
         const remaining = ctx.state.steps.filter(
           (s) => s.status === 'pending' || s.status === 'ready',
         );
-        const shouldReflect =
-          outcome.result.status === 'failed' ||
-          ((this.options.reflectOnSuccess ?? true) && remaining.length > 0);
-        if (!shouldReflect) continue;
+        // Nothing left to steer once the last step succeeded; go straight to finalize.
+        if (outcome.result.status === 'succeeded' && remaining.length === 0) continue;
 
-        const decision = await reflect(ctx, {
-          plan: ctx.state.plan!,
-          step: ctx.state.step(outcome.step.id) ?? outcome.step,
-          result: outcome.result,
-          replansLeft: ctx.budget.maxReplans - guard.replans,
-          notes: ctx.notes,
-        });
+        const decision = await reflect(
+          ctx,
+          {
+            plan: ctx.state.plan!,
+            step: ctx.state.step(outcome.step.id) ?? outcome.step,
+            result: outcome.result,
+            replansLeft: ctx.budget.maxReplans - guard.replans,
+            notes: ctx.notes,
+          },
+          { llmOnSuccess: this.options.reflectOnSuccess ?? false },
+        );
         ctx.emit({ type: 'reflection', stepId: outcome.step.id, decision });
         finishEarly = (await this.applyDecision(ctx, guard, decision, outcome)) || finishEarly;
       }
@@ -220,14 +247,7 @@ export class LoopEngine {
         return false;
       }
       case 'replan': {
-        if (!guard.canReplan()) {
-          ctx.emit({
-            type: 'log',
-            level: 'warn',
-            message: `Replan requested but budget exhausted (${ctx.budget.maxReplans}); continuing`,
-          });
-          return false;
-        }
+        guard.assertReplanAvailable(decision.reason);
         ctx.emit({ type: 'run.status', status: 'replanning' });
         const patched = applyPlanPatch(ctx.state.plan!, decision.patch, nowIso(), {
           availableTools: ctx.tools.plannableNames(),

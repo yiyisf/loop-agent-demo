@@ -152,7 +152,7 @@ export class RunManager {
     };
     entry.timeout = setTimeout(() => {
       controller.abort(
-        new Error(`Run exceeded ${Math.round(budget.maxDurationMs / 1000)}s time limit`),
+        new Error(`timeout: run exceeded ${Math.round(budget.maxDurationMs / 1000)}s time limit`),
       );
     }, budget.maxDurationMs);
     entry.timeout.unref?.();

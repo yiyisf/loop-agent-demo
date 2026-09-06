@@ -100,7 +100,7 @@ describe('LoopEngine reflection & replanning', () => {
     expect(events.filter((e) => e.type === 'reflection').length).toBeGreaterThan(0);
   });
 
-  it('ignores replan requests once the replan budget is exhausted', async () => {
+  it('fails the run (after a best-effort final answer) when a replan is requested with no budget left', async () => {
     const script: MockScript = (ctx) => {
       if (ctx.role === 'executor' && ctx.systemText.includes('- id: work'))
         return finish('failed', 'nope');
@@ -122,8 +122,12 @@ describe('LoopEngine reflection & replanning', () => {
     await res.text();
     const events = await h.collectEvents(runId);
     expect(events.some((e) => e.type === 'plan.revised')).toBe(false);
-    expect(events.some((e) => e.type === 'log' && /budget exhausted/.test(e.message))).toBe(true);
-    expect(h.ctx.runManager.get(runId)!.run.status).toBe('failed');
+    expect(events.some((e) => e.type === 'final.done')).toBe(true);
+    const skipped = events.filter((e) => e.type === 'step.status' && e.status === 'skipped');
+    expect(skipped.length).toBeGreaterThan(0);
+    const snapshot = h.ctx.runManager.get(runId)!;
+    expect(snapshot.run.status).toBe('failed');
+    expect(snapshot.run.error).toMatch(/Replan budget exhausted/);
   });
 
   it('finishes early and skips the remaining steps', async () => {
@@ -133,7 +137,11 @@ describe('LoopEngine reflection & replanning', () => {
         return { json: { action: 'finish_early', reason: 'already enough' } };
       return defaultMockScript(ctx);
     };
-    const h = await createTestHarness({ script, env: { BUDGET_MAX_PARALLEL: '1' } });
+    // Successful steps only reach the model reflector when forced on.
+    const h = await createTestHarness({
+      script,
+      env: { BUDGET_MAX_PARALLEL: '1', REFLECT_ON_SUCCESS: 'true' },
+    });
     cleanup = h.cleanup;
 
     const { runId, res } = await h.startRun('finish early');
@@ -168,18 +176,47 @@ describe('LoopEngine reflection & replanning', () => {
     await res.text();
     const events = await h.collectEvents(runId);
     expect(maxConcurrent).toBe(2);
-    expect(events.some((e) => e.type === 'reflection')).toBe(false);
+    // Confident successes never reach the model reflector.
+    expect(
+      events.every(
+        (e) =>
+          e.type !== 'reflection' ||
+          (e.decision.action === 'continue' && e.decision.note?.startsWith('rule:')),
+      ),
+    ).toBe(true);
     expect(h.ctx.runManager.get(runId)!.run.status).toBe('succeeded');
   });
 
-  it('fails the run when the token budget is exceeded', async () => {
+  it('fails the run when the token budget is exceeded but still writes a final answer', async () => {
     const h = await createTestHarness({ env: { BUDGET_MAX_TOTAL_TOKENS: '700' } });
     cleanup = h.cleanup;
     const { runId, res } = await h.startRun('budget');
     await res.text();
-    await h.collectEvents(runId);
+    const events = await h.collectEvents(runId);
     const snapshot = h.ctx.runManager.get(runId)!;
     expect(snapshot.run.status).toBe('failed');
     expect(snapshot.run.error).toMatch(/Token budget exceeded/);
+    expect(events.some((e) => e.type === 'final.done')).toBe(true);
+    expect(snapshot.run.finalAnswer).toBeTruthy();
+  });
+
+  it('uses the rule-based reflector for confident successes and the model for failures', async () => {
+    const reflectorCalls: string[] = [];
+    const script: MockScript = (ctx) => {
+      if (ctx.role === 'reflector') reflectorCalls.push(ctx.lastUserText);
+      return defaultMockScript(ctx);
+    };
+    const h = await createTestHarness({ script });
+    cleanup = h.cleanup;
+    const { runId, res } = await h.startRun('rule reflection');
+    await res.text();
+    const events = await h.collectEvents(runId);
+    const reflections = events.filter((e) => e.type === 'reflection');
+    expect(reflections.length).toBeGreaterThan(0);
+    expect(reflectorCalls).toHaveLength(0);
+    for (const r of reflections) {
+      expect(r.decision.action).toBe('continue');
+      expect(r.decision.action === 'continue' && r.decision.note).toMatch(/^rule:/);
+    }
   });
 });

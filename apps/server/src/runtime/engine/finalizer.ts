@@ -6,12 +6,20 @@ import { errorMessage } from './executor.js';
 import { telemetryFor } from './telemetry.js';
 
 /** Streams the final answer, emitting `final.text_delta` events; returns the full text. */
-export async function finalize(ctx: RunContext, plan: Plan): Promise<string> {
+/**
+ * Streams the final answer. `interruption` explains why the plan stopped early
+ * (e.g. budget exhaustion) so the answer can be framed as a best-effort summary.
+ */
+export async function finalize(
+  ctx: RunContext,
+  plan: Plan,
+  interruption?: string,
+): Promise<string> {
   throwIfAborted(ctx.signal);
   const result = streamText({
     model: ctx.models.model('finalizer', ctx.run.model),
     system: finalizerSystemPrompt(),
-    prompt: finalizerUserPrompt(plan, ctx.run.input),
+    prompt: finalizerUserPrompt(plan, ctx.run.input, interruption),
     abortSignal: ctx.signal,
     telemetry: telemetryFor(ctx.config, 'finalizer'),
   });

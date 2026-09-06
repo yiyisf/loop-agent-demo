@@ -32,11 +32,14 @@ const ConfigSchema = z.object({
     .default(15 * 60_000),
   BUDGET_MAX_TOTAL_TOKENS: z.coerce.number().int().positive().default(300_000),
   BUDGET_MAX_STEPS: z.coerce.number().int().positive().max(30).default(12),
-  /** Run the reflector after successful steps as well (costs one LLM call per step). */
+  /**
+   * Consult the LLM reflector after every successful step (one extra call per step).
+   * Off by default: confident successes use the rule-based reflector (ADR D8).
+   */
   REFLECT_ON_SUCCESS: z
     .string()
     .optional()
-    .transform((v) => v === undefined || v === 'true' || v === '1'),
+    .transform((v) => v === 'true' || v === '1'),
 
   OTEL_ENABLED: z
     .string()

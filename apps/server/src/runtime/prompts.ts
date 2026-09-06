@@ -138,7 +138,10 @@ Format (Markdown):
 Be specific and reuse the concrete facts from step results. Do not invent facts that are not in the step results. Respond in the language of the objective.`;
 }
 
-export function finalizerUserPrompt(plan: Plan, task: string): string {
+export function finalizerUserPrompt(plan: Plan, task: string, interruption?: string): string {
+  const note = interruption
+    ? `\n\n## Interruption\nThe run stopped before all steps completed: ${interruption}. Summarise what was achieved so far and state clearly what is missing.`
+    : '';
   const steps = plan.steps
     .map((s) => {
       const status = s.status;
@@ -150,7 +153,7 @@ export function finalizerUserPrompt(plan: Plan, task: string): string {
       return `### ${s.title} (${s.id}) — ${status}\n${summary}${output}`;
     })
     .join('\n\n');
-  return `Task:\n${task}\n\nObjective: ${plan.objective}\n\n## Step results\n${steps}`;
+  return `Task:\n${task}\n\nObjective: ${plan.objective}\n\n## Step results\n${steps}${note}`;
 }
 
 export function truncate(text: string, max: number): string {
