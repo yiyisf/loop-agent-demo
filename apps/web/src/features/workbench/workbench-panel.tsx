@@ -1,4 +1,4 @@
-import { Activity, ListTree, PanelRightClose, ScrollText } from 'lucide-react';
+import { Activity, ListTree, PanelRightClose, ScrollText, Workflow } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +8,7 @@ import { cn, formatDuration, formatTokens } from '@/lib/utils';
 import { useRunStore } from '@/stores/run-store';
 import { useUiStore } from '@/stores/ui-store';
 import { useWorkbenchStore } from '@/stores/workbench-store';
+import { PlanDag } from './plan-dag';
 import { RunEvents } from './run-events';
 import { StepDetail } from './step-detail';
 
@@ -45,9 +46,12 @@ export function WorkbenchPanel() {
           运行开始后，这里会显示步骤详情、工具调用与用量。
         </div>
       ) : (
-        <Tabs defaultValue="steps" className="min-h-0 flex-1 gap-0">
+        <Tabs defaultValue="plan" className="min-h-0 flex-1 gap-0">
           <div className="border-b px-3 py-2">
             <TabsList className="w-full">
+              <TabsTrigger value="plan">
+                <Workflow /> 计划
+              </TabsTrigger>
               <TabsTrigger value="steps">
                 <ListTree /> 步骤
               </TabsTrigger>
@@ -59,6 +63,32 @@ export function WorkbenchPanel() {
               </TabsTrigger>
             </TabsList>
           </div>
+
+          <TabsContent value="plan" className="min-h-0 overflow-y-auto scrollbar-thin">
+            <div className="flex items-center justify-between border-b px-3 py-2 text-xs text-muted-foreground">
+              <span>
+                计划 v{view.plan.revision} · {view.steps.length} 步 ·{' '}
+                {view.steps.filter((s) => s.status === 'succeeded').length} 完成
+              </span>
+              <span>点击节点查看详情</span>
+            </div>
+            <PlanDag
+              steps={view.steps}
+              selectedStepId={selected?.id}
+              onSelect={selectStep}
+              className="h-72 border-b"
+            />
+            {selected ? (
+              <StepDetail
+                runId={view.runId}
+                step={selected}
+                toolCalls={view.toolCalls.filter((t) => t.stepId === selected.id)}
+                log={stepLogs?.[selected.id]}
+              />
+            ) : (
+              <p className="p-4 text-center text-sm text-muted-foreground">选择一个步骤查看详情</p>
+            )}
+          </TabsContent>
 
           <TabsContent value="steps" className="min-h-0 overflow-y-auto scrollbar-thin">
             <div className="flex flex-wrap gap-1 border-b p-2">
