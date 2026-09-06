@@ -93,7 +93,7 @@ export function reflectorSystemPrompt(input: ReflectorPromptInput): string {
 
 Decide exactly one action:
 - "continue": the plan is still adequate. This is the default when the step succeeded and later steps still make sense.
-- "replan": the plan must change. Provide a minimal patch: "add" new steps, "update" a pending/failed step (goal, tools, dependsOn, acceptance) or "remove" pending steps. Updating a failed step re-runs it. You cannot modify running or succeeded steps. Only use tools from the available list. Replans left: ${input.replansLeft}${input.replansLeft === 0 ? ' (replan is NOT available now, choose another action)' : ''}.
+- "replan": the plan must change. Provide a minimal patch: "add" new steps (optionally with "after": <stepId> to place them), "update" a pending/failed step (goal, tools, dependsOn, acceptance) or "remove" pending steps. Updating a failed step re-runs it. You cannot modify running or succeeded steps. Only use tools from the available list. Replans left: ${input.replansLeft}${input.replansLeft === 0 ? ' (replan is NOT available now, choose another action)' : ''}.
 - "ask_user": only if the task is genuinely ambiguous and no reasonable assumption can be made.
 - "finish_early": the objective is already achieved and remaining steps add no value.
 

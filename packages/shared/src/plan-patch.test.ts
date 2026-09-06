@@ -54,6 +54,29 @@ describe('applyPlanPatch', () => {
     expect(res.plan.steps.map((s) => s.id)).toEqual(['a', 'b', 'c', 'e']);
   });
 
+  it('inserts added steps after the anchor step when `after` is given', () => {
+    const draft = { title: 'E', goal: 'g', dependsOn: ['a'], tools: [], acceptance: 'ok' };
+    const res = applyPlanPatch(
+      plan(),
+      [
+        { op: 'add', step: { id: 'e', ...draft }, after: 'a' },
+        { op: 'add', step: { id: 'f', ...draft } },
+      ],
+      't1',
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.plan.steps.map((s) => s.id)).toEqual(['a', 'e', 'b', 'c', 'd', 'f']);
+
+    const bad = applyPlanPatch(
+      plan(),
+      [{ op: 'add', step: { id: 'g', ...draft }, after: 'zz' }],
+      't1',
+    );
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.errors[0]).toMatch(/unknown step "zz"/);
+  });
+
   it('refuses to touch running or succeeded steps', () => {
     const res = applyPlanPatch(plan(), [{ op: 'remove', stepId: 'a' }], 't1');
     expect(res.ok).toBe(false);

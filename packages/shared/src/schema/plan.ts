@@ -91,6 +91,8 @@ export const PlanPatchOpSchema = z.discriminatedUnion('op', [
   z.object({
     op: z.literal('add'),
     step: StepDraftSchema,
+    /** Insert right after this step id (display order); appended when omitted. */
+    after: z.string().optional(),
   }),
   z.object({
     op: z.literal('update'),

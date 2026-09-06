@@ -41,14 +41,21 @@ export function applyPlanPatch(
           errors.push(`Cannot add step "${op.step.id}": id already exists`);
           break;
         }
-        steps.push({
+        const added: Step = {
           ...op.step,
           dependsOn: [...op.step.dependsOn],
           tools: [...op.step.tools],
           status: 'pending',
           attempt: 0,
           revisionIntroduced: revision,
-        });
+        };
+        const anchor = op.after ? steps.findIndex((s) => s.id === op.after) : -1;
+        if (op.after && anchor === -1) {
+          errors.push(`Cannot add step "${op.step.id}" after unknown step "${op.after}"`);
+          break;
+        }
+        if (anchor === -1) steps.push(added);
+        else steps.splice(anchor + 1, 0, added);
         diff.added.push(op.step.id);
         break;
       }
