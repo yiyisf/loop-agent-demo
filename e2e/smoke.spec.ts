@@ -63,4 +63,33 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByRole('button', { name: /计划 v2 已调整/ })).toBeVisible();
     await expect(page.getByRole('heading', { name: '结论' })).toBeVisible({ timeout: 45_000 });
   });
+
+  test('regenerate starts a new run from the previous user message', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: /规划方案/ })).toBeVisible();
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('计算 (12+30)*2 并说明过程');
+    await composer.press('Enter');
+    await expect(page.getByRole('heading', { name: '结论' })).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByText('已完成').first()).toBeVisible();
+
+    await page.getByRole('button', { name: '重新生成' }).click();
+    await expect(page.getByText('计算 (12+30)*2 并说明过程')).toHaveCount(2);
+    await expect(page.getByRole('heading', { name: '结论' })).toHaveCount(2, { timeout: 45_000 });
+    await expect(page.getByRole('button', { name: '重新生成' })).toHaveCount(1);
+  });
+
+  test('retry after a denied approval starts a new run', async ({ page }) => {
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('抓取 https://example.com/ 的网页并总结');
+    await composer.press('Enter');
+    await expect(page.getByText('工具审批')).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('button', { name: '拒绝' }).click();
+    await expect(page.getByRole('button', { name: '重试' })).toBeVisible({ timeout: 45_000 });
+
+    await page.getByRole('button', { name: '重试' }).click();
+    await expect(page.getByText('工具审批')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('抓取 https://example.com/ 的网页并总结')).toHaveCount(2);
+  });
 });
