@@ -8,7 +8,8 @@ test.describe('loop-agent smoke', () => {
     await composer.press('Enter');
 
     await expect(page).toHaveURL(/\/threads\/thr_/);
-    await expect(page.getByText('计算 (12+30)*2 并说明过程')).toBeVisible();
+    // Exact user bubble — the plan card also contains the task as "完成任务：…".
+    await expect(page.getByTestId('user-message')).toHaveText('计算 (12+30)*2 并说明过程');
     // Plan card shows up with the mock plan's steps.
     await expect(page.getByText('理解任务并拆解要点').first()).toBeVisible();
 
@@ -23,7 +24,8 @@ test.describe('loop-agent smoke', () => {
 
     // Sidebar lists the thread under today's group with a generated title.
     await expect(page.getByText('今天')).toBeVisible();
-    await expect(page.getByRole('link', { name: /计算/ })).toBeVisible();
+    // CI retries reuse the in-memory store, so earlier attempts may leave extra threads.
+    await expect(page.getByRole('navigation').getByRole('link', { name: /计算/ }).first()).toBeVisible();
 
     // Cmd/Ctrl+K jumps back to the new-task page and focuses the composer.
     await page.keyboard.press('ControlOrMeta+k');
