@@ -28,6 +28,7 @@ export interface RunView {
   approvals: Approval[];
   questions: UserQuestion[];
   usage?: Usage;
+  model?: string;
   finalText: string;
   isTerminal: boolean;
 }
@@ -54,6 +55,7 @@ export function deriveRunView(message: AgentUIMessage | undefined): RunView {
         view.error = d.error;
         view.startedAt = d.startedAt;
         view.endedAt = d.endedAt;
+        view.model = d.model;
         break;
       }
       case 'data-plan': {
@@ -91,6 +93,7 @@ export function deriveRunView(message: AgentUIMessage | undefined): RunView {
   view.steps = order.map((id) => stepMap.get(id) ?? view.plan!.steps.find((s) => s.id === id)!);
   view.isTerminal = view.status ? TERMINAL_RUN_STATUSES.has(view.status) : false;
   if (!view.runId) view.runId = message.metadata?.runId;
+  if (!view.model) view.model = message.metadata?.model;
   return view;
 }
 

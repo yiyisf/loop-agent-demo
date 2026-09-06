@@ -47,6 +47,7 @@ export function eventToChunks(
           startedAt: run.startedAt,
           endedAt: run.endedAt,
           error: run.error,
+          model: run.model,
         },
       });
       break;
@@ -227,6 +228,7 @@ export function buildAssistantMessage(snapshot: RunSnapshot): LoopAgentUIMessage
       startedAt: run.startedAt,
       endedAt: run.endedAt,
       error: run.error,
+      model: run.model,
     },
   });
   if (plan) {

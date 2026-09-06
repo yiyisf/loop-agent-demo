@@ -17,6 +17,7 @@ export type LoopAgentDataParts = {
     startedAt?: string;
     endedAt?: string;
     error?: string;
+    model?: string;
   };
   /** Current plan; single part with id "plan". */
   plan: {

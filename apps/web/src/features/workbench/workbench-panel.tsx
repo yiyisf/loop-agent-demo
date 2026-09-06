@@ -1,3 +1,4 @@
+import { estimateCost, formatUsd, type Usage } from '@loop-agent/shared';
 import { Activity, ListTree, PanelRightClose, ScrollText, Workflow } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -156,6 +157,8 @@ export function WorkbenchPanel() {
                   <dd>{view.usage.llmCalls}</dd>
                   <dt className="text-muted-foreground">工具调用</dt>
                   <dd>{view.usage.toolCalls}</dd>
+                  <dt className="text-muted-foreground">估算成本</dt>
+                  <dd>{formatCost(view.usage, view.model)}</dd>
                 </>
               )}
               {view.error && (
@@ -184,4 +187,12 @@ export function WorkbenchPanel() {
       )}
     </div>
   );
+}
+
+function formatCost(usage: Usage, model?: string): string {
+  const cost = estimateCost(usage, model);
+  const label = formatUsd(cost.usd);
+  if (cost.rateKey === 'mock') return `${label}（mock）`;
+  if (!cost.matched) return `${label}（按 ${cost.rateKey} 单价估算）`;
+  return `${label}（${cost.rateKey}）`;
 }
