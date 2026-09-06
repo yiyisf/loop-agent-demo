@@ -175,7 +175,7 @@ erDiagram
 // packages/shared/src/schema/plan.ts
 export const StepStatus = z.enum([
   'pending', 'ready', 'running', 'succeeded', 'failed',
-  'skipped', 'cancelled', 'waiting_approval', 'waiting_user',
+  'skipped', 'blocked', 'cancelled', 'waiting_approval', 'waiting_user',
 ]);
 
 export const StepSchema = z.object({
@@ -238,9 +238,9 @@ export const RunSchema = z.object({
 
 ```ts
 export const RunEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('run.status'), status: RunStatus }),
+  z.object({ type: z.literal('run.status'), status: RunStatus, reason: z.string().optional() }),
   z.object({ type: z.literal('plan.created'), plan: PlanSchema }),
-  z.object({ type: z.literal('plan.revised'), plan: PlanSchema, diff: PlanDiffSchema }),
+  z.object({ type: z.literal('plan.revised'), plan: PlanSchema, diff: PlanDiffSchema, reason: z.string() }),
   z.object({ type: z.literal('step.status'), stepId: z.string(), status: StepStatus, attempt: z.number() }),
   z.object({ type: z.literal('step.result'), stepId: z.string(), result: StepResultSchema }),
   z.object({ type: z.literal('step.text_delta'), stepId: z.string(), delta: z.string() }),
@@ -323,12 +323,11 @@ stateDiagram-v2
   awaiting_user --> executing : 用户回答
   executing --> replanning : Reflector 决定重规划 / 步骤失败
   replanning --> executing : 新 revision
-  executing --> finalizing : 全部步骤终态且 Reflector 判定完成
+  executing --> finalizing : 全部步骤终态 / 预算耗尽（保留已完成产出）
   finalizing --> succeeded
-  executing --> failed : 预算耗尽 / 致命错误
+  finalizing --> failed : 有失败/阻塞步骤或预算耗尽（已尽力总结）
+  executing --> cancelled : 用户取消 / 时长超限
   planning --> failed
-  replanning --> failed : 超过最大重规划次数
-  executing --> cancelled : 用户取消
 ```
 
 主循环伪代码：
@@ -475,10 +474,10 @@ export const PlanPatchOpSchema = z.discriminatedUnion('op', [
 | maxSteps（Plan 步骤数） | 12 | Planner 校验失败重试 |
 | maxToolCallsPerStep | 8 | 强制 finish_step |
 | maxAttemptsPerStep | 2 | 交由 Reflector |
-| maxReplans | 3 | Run failed |
+| maxReplans | 3 | 跳过剩余步骤 → Finalizer 尽力总结 → `failed` |
 | maxParallel | 2 | 排队 |
-| maxTotalTokens | 300k | Run failed（保留已完成产出并 Finalizer 尽力总结） |
-| maxDurationMs | 15 min | abort → cancelled(reason=timeout) |
+| maxTotalTokens | 300k | 跳过剩余步骤 → Finalizer 尽力总结 → `failed` |
+| maxDurationMs | 15 min | RunManager abort → `cancelled(reason=timeout)`（时长只由此路径判定） |
 
 ### 7.7 Finalizer
 
@@ -565,8 +564,8 @@ interface RegisteredTool {
 | `run.status` | `data-run` (id=`run`) | 同 id 覆盖更新，前端得到最新状态 |
 | `plan.created` / `plan.revised` | `data-plan` (id=`plan`) | 携带完整 plan + diff；同 id 覆盖 |
 | `step.status` / `step.result` | `data-step` (id=`step:${stepId}`) | 每步骤一个可更新分片 |
-| `tool.call` / `tool.result` | `tool-*` 标准分片（`tool-input-available` / `tool-output-available`） | 复用 AI SDK 工具渲染语义；带 `stepId` 于 `providerMetadata`/data 中 |
-| `approval.requested` | `tool-approval-request` 标准分片 | 前端 `addToolApprovalResponse` 或调用审批端点 |
+| `tool.call` / `tool.result` | `data-tool` (id=`tool:<toolCallId>`) | 步骤内工具调用不属于 assistant 顶层 tool-loop，用自定义分片携带 `stepId` |
+| `approval.requested` / `approval.resolved` | `data-approval` (id=`approval:<id>`) | 前端调用 REST 审批端点，不走 `addToolApprovalResponse` |
 | `step.text_delta` / `step.reasoning_delta` | `data-step-log` (transient) | 步骤内过程文本，不进消息历史，仅右侧面板展示 |
 | `user_question.asked` | `data-question` (id=`q:${id}`) | 内联提问卡片 |
 | `final.text_delta` | `text-start` / `text-delta` / `text-end` | 最终回答，进入消息历史 |
@@ -695,10 +694,11 @@ apps/web/src/
 | `messages` | id, thread_id, role, parts(JSON), run_id?, created_at |
 | `runs` | id, thread_id, status, input, mode, current_revision, budget(JSON), usage(JSON), final_answer, error, created_at, started_at, ended_at |
 | `plan_revisions` | id, run_id, revision, objective, rationale, steps(JSON), diff(JSON), created_at |
-| `steps` | id(run_id+step_id 唯一), run_id, revision_introduced, title, goal, depends_on(JSON), tools(JSON), acceptance, status, attempt, result(JSON), error, usage(JSON), started_at, ended_at |
 | `events` | id, run_id, seq, type, payload(JSON), ts；索引 (run_id, seq) |
 | `approvals` | id, run_id, step_id, tool_call_id, tool_name, input(JSON), status, reason, created_at, resolved_at |
 | `artifacts` | id, run_id, step_id, name, mime, size, path, created_at |
+
+步骤不单独建表：当前 revision 的 `steps` JSON 存在 `plan_revisions` 中，运行时状态由事件投影。`approvals` / `artifacts` 落库以便重启后查询未决审批与读取产物。
 
 Thread 标题：首个 Run 完成后由模型生成 6–12 字标题（异步，失败则用输入前 30 字）。
 
@@ -767,9 +767,11 @@ loop-agent-demo/
 
 **实施状态**：阶段 1–7 已完成并合入基础版。与设计的主要偏差：
 
-- 成本估算（按模型单价表）未实现，工作台仅展示 token / 调用次数 / 耗时。
 - OTel 仅提供 `OTEL_ENABLED` 开关与 `functionId` 标注，未内置 exporter；需接入方在进程内注册 OpenTelemetry SDK。
+- 未引入 AI Elements 组件集；聊天卡片基于 radix-ui 自建。
+- `tool.call` / 审批走自定义 `data-tool` / `data-approval` 分片（ADR D10），不用 AI SDK 标准 tool / approval chunk。
 - mock 模型内置了 HITL 演示场景（关键词触发 `http_fetch` 审批 / `ask_user`），用于离线演示与 E2E。
+- 服务端目录以 `store/`（memory + sqlite）替代设计稿的 `db/repositories/`；`scheduler` 逻辑合入 `engine/context.ts`。
 
 ### 阶段 1：脚手架与契约
 
@@ -896,6 +898,8 @@ loop-agent-demo/
 | D7 | `finish_step` 工具作为步骤结构化收尾 | 解析自由文本 | 可靠、可校验，与 `hasToolCall` 停止条件配合 |
 | D8 | 成功步骤默认规则反思、失败步骤 LLM 反思 | 每步都 LLM 反思 | 控制成本与延迟 |
 | D9 | 服务端只信任 DB 历史，客户端仅提交最新输入 | 客户端回传全量消息 | 防篡改、减少带宽 |
+| D10 | 步骤内工具/审批用 `data-tool` / `data-approval` | AI SDK 标准 `tool-*` / `tool-approval-request` | 工具调用属于 Step 而非 assistant 顶层循环；REST 审批与事件投影更直接 |
+| D11 | 时长超限只由 RunManager abort → cancelled | BudgetGuard 同时检查时长 | 避免两条路径竞态导致终态不确定 |
 
 ---
 

@@ -18,18 +18,18 @@
 | 内置工具 | `web_search`、`http_fetch`、`calculator`、`workspace_read/write/list`、`read_artifact`、`ask_user`、`finish_step` |
 | 人在回路 | 高风险工具审批（可开启自动批准）、Agent 向用户提问、`plan_first` 模式下确认/编辑计划 |
 | 预算控制 | 最大重规划次数 / 步骤数 / 总耗时 / 总 token；超限自动进入收尾 |
-| 实时可视化 | 计划卡片、步骤时间线、工具调用详情、工作台（步骤详情 / 用量 / 原始事件） |
-| 持久化与恢复 | SQLite（libsql + Drizzle）保存会话、消息、运行、计划修订、事件；服务重启后未完成运行标记为失败并保留进度 |
+| 实时可视化 | 计划卡片、步骤 DAG（React Flow）、工具调用详情、工作台（计划 / 步骤 / 用量与成本 / 事件） |
+| 持久化与恢复 | SQLite 保存会话、消息、运行、计划修订、事件、审批、产物元数据；服务重启后未完成运行标记为失败并保留进度 |
 | 断线重连 | `GET /api/runs/:id/stream?fromSeq=` 回放并续流；前端自动重连 |
 | 会话管理 | 模型自动生成标题、按日期分组、搜索、重命名、删除 |
-| 可观测性 | Pino 结构化日志、每次模型调用的 usage 事件、可选 AI SDK 遥测（`OTEL_ENABLED`）、事件调试视图 |
+| 可观测性 | Pino 结构化日志、usage 事件、按模型单价表的成本估算、可选 AI SDK 遥测（`OTEL_ENABLED`）、事件调试视图 |
 | 交付 | 单进程生产部署（API + 静态前端）、Dockerfile / docker-compose、Playwright E2E |
 
 ## 架构
 
 ```
 ┌──────────────────────── apps/web (Vite + React 19) ────────────────────────┐
-│  Sidebar(会话)  │  Chat(消息 / 计划卡片 / 审批卡 / 问答卡)  │  Workbench(步骤/用量/事件) │
+│  Sidebar(会话)  │  Chat(消息 / 计划卡片 / 审批卡 / 问答卡)  │  Workbench(计划DAG/步骤/用量/事件) │
 │  TanStack Router + Query · zustand · AI SDK useChat(UI Message Stream)      │
 └──────────────────────────────────┬─────────────────────────────────────────┘
                      REST + SSE    │  POST /api/threads/:id/messages   GET /api/runs/:id/stream
@@ -109,7 +109,7 @@ SEARCH_API_KEY=tvly-...
 | `BUDGET_MAX_STEPS` | `12` | 单次运行最大步骤数（≤ 30） |
 | `BUDGET_MAX_DURATION_MS` | `900000` | 单次运行最长时间 |
 | `BUDGET_MAX_TOTAL_TOKENS` | `300000` | 单次运行 token 上限 |
-| `REFLECT_ON_SUCCESS` | `true` | 成功步骤后也运行 Reflector（`false` 仅失败后反思，省一次模型调用） |
+| `REFLECT_ON_SUCCESS` | `false` | 为 `true` 时成功步骤也走 LLM 反思；默认仅失败与不确定摘要调模型 |
 | `OTEL_ENABLED` | `false` | 为模型调用开启 AI SDK 遥测（需在进程内注册 OpenTelemetry SDK/exporter） |
 
 ## API
@@ -127,6 +127,8 @@ SEARCH_API_KEY=tvly-...
 | POST | `/api/threads/:id/messages` | **发送消息并启动 Run**，返回 UI Message Stream（SSE），响应头 `x-run-id` |
 | GET | `/api/runs/:id` | Run 快照：run、当前 plan、steps、待处理交互、usage |
 | GET | `/api/runs/:id/events?fromSeq=` | 原始事件（调试视图数据源） |
+| GET | `/api/runs/:id/artifacts` | 本次运行的产物清单（不含磁盘路径） |
+| GET | `/api/runs/:id/artifacts/:artifactId` | 读取产物内容（`?download` 触发下载） |
 | GET | `/api/runs/:id/stream?fromSeq=` | **重连**：以 UI Message Stream 回放并续流；已结束且无缓冲时返回 204 |
 | POST | `/api/runs/:id/cancel` | 取消运行 |
 | POST | `/api/runs/:id/plan/confirm` | `plan_first` 确认，可携带编辑后的 `steps` |
