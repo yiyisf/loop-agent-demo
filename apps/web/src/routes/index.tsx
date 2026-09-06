@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Calculator, FileText, Globe, Sparkles } from 'lucide-react';
+import { Calculator, FileText, Globe, Route as RouteIcon, Sparkles } from 'lucide-react';
 import { TopBar } from '@/components/layout/top-bar';
 import { Composer } from '@/features/chat/composer';
 import { api, queryKeys } from '@/lib/api';
@@ -25,6 +25,11 @@ const suggestions = [
     icon: FileText,
     title: '文档产出',
     text: '为一个内部 CLI 工具编写 README 草稿，包含简介、安装、常用命令与常见问题，并保存到工作区。',
+  },
+  {
+    icon: RouteIcon,
+    title: '规划方案',
+    text: '先问我团队规模与预算，再为一个 5 人前端团队设计从 Webpack 迁移到 Vite 的分阶段方案与风险清单。',
   },
 ];
 
@@ -70,7 +75,7 @@ function IndexPage() {
           {start.error && <p className="mt-2 text-xs text-destructive">{start.error.message}</p>}
         </div>
 
-        <div className="grid w-full max-w-2xl gap-2 sm:grid-cols-3">
+        <div className="grid w-full max-w-2xl gap-2 sm:grid-cols-2">
           {suggestions.map((s) => (
             <button
               type="button"

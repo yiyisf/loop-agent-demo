@@ -1,5 +1,6 @@
-import { AlertTriangle, Bot, ChevronRight, Wrench } from 'lucide-react';
+import { AlertTriangle, Bot, ChevronRight, RotateCcw, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Spinner } from '@/components/ui/spinner';
 import { deriveRunView } from '@/lib/run-view';
@@ -17,9 +18,16 @@ export interface AssistantMessageProps {
   message: AgentUIMessage;
   isLatest: boolean;
   isStreaming: boolean;
+  /** Present only on the latest, settled message: re-runs its user input. */
+  onRerun?: () => void;
 }
 
-export function AssistantMessage({ message, isLatest, isStreaming }: AssistantMessageProps) {
+export function AssistantMessage({
+  message,
+  isLatest,
+  isStreaming,
+  onRerun,
+}: AssistantMessageProps) {
   const view = useMemo(() => deriveRunView(message), [message]);
   const live = isLatest && isStreaming && !view.isTerminal;
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -144,7 +152,18 @@ export function AssistantMessage({ message, isLatest, isStreaming }: AssistantMe
                 <Spinner /> 正在整理最终回答…
               </div>
             )}
-            <FinalAnswer text={view.finalText} streaming={live && view.status === 'finalizing'} />
+            <FinalAnswer
+              text={view.finalText}
+              streaming={live && view.status === 'finalizing'}
+              actions={
+                onRerun && view.status === 'succeeded' ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={onRerun}>
+                    <RotateCcw />
+                    重新生成
+                  </Button>
+                ) : undefined
+              }
+            />
           </div>
         )}
 
@@ -152,7 +171,19 @@ export function AssistantMessage({ message, isLatest, isStreaming }: AssistantMe
           (view.error || view.statusReason) && (
             <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <span>{view.error ?? view.statusReason}</span>
+              <span className="min-w-0 flex-1">{view.error ?? view.statusReason}</span>
+              {onRerun && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={onRerun}
+                >
+                  <RotateCcw />
+                  重试
+                </Button>
+              )}
             </div>
           )}
       </div>

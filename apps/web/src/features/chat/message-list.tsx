@@ -4,11 +4,15 @@ import { Button } from '@/components/ui/button';
 import type { AgentUIMessage } from '@/lib/types';
 import { AssistantMessage } from './assistant-message';
 
-function UserMessage({ message }: { message: AgentUIMessage }) {
-  const text = message.parts
+export function messageText(message: AgentUIMessage): string {
+  return message.parts
     .filter((p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text')
     .map((p) => p.text)
     .join('\n');
+}
+
+function UserMessage({ message }: { message: AgentUIMessage }) {
+  const text = messageText(message);
   return (
     <div className="flex justify-end">
       <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm whitespace-pre-wrap text-primary-foreground">
@@ -21,9 +25,12 @@ function UserMessage({ message }: { message: AgentUIMessage }) {
 export function MessageList({
   messages,
   isStreaming,
+  onRerun,
 }: {
   messages: AgentUIMessage[];
   isStreaming: boolean;
+  /** Re-submits the given user input as a new run (retry / regenerate). */
+  onRerun?: (text: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
@@ -42,7 +49,13 @@ export function MessageList({
     setPinned(distance < 80);
   };
 
-  const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant')?.id;
+  const lastAssistantIndex = messages.findLastIndex((m) => m.role === 'assistant');
+  const lastAssistantId = messages[lastAssistantIndex]?.id;
+  const precedingUser = messages
+    .slice(0, Math.max(lastAssistantIndex, 0))
+    .findLast((m) => m.role === 'user');
+  const rerunText = precedingUser ? messageText(precedingUser) : '';
+  const rerun = onRerun && rerunText && !isStreaming ? () => onRerun(rerunText) : undefined;
 
   return (
     <div className="relative min-h-0 flex-1">
@@ -57,6 +70,7 @@ export function MessageList({
                 message={m}
                 isLatest={m.id === lastAssistantId}
                 isStreaming={isStreaming}
+                onRerun={m.id === lastAssistantId ? rerun : undefined}
               />
             ),
           )}

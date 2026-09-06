@@ -1,4 +1,5 @@
 import { Check, Copy } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Streamdown } from 'streamdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,7 +18,16 @@ export function Markdown({ text, className }: { text: string; className?: string
   );
 }
 
-export function FinalAnswer({ text, streaming }: { text: string; streaming: boolean }) {
+export function FinalAnswer({
+  text,
+  streaming,
+  actions,
+}: {
+  text: string;
+  streaming: boolean;
+  /** Extra actions rendered next to "copy" once streaming has finished. */
+  actions?: ReactNode;
+}) {
   const { copied, copy } = useCopy(text);
   if (!text) return null;
   return (
@@ -27,11 +37,12 @@ export function FinalAnswer({ text, streaming }: { text: string; streaming: bool
         <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-primary/70 align-text-bottom" />
       )}
       {!streaming && (
-        <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="mt-3 flex items-center gap-1 border-t pt-2 text-muted-foreground">
           <Button type="button" variant="ghost" size="sm" onClick={copy}>
             {copied ? <Check className="text-success" /> : <Copy />}
             {copied ? '已复制' : '复制'}
           </Button>
+          {actions}
         </div>
       )}
     </div>
