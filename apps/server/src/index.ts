@@ -1,5 +1,4 @@
 import { serve } from '@hono/node-server';
-import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { loadDotEnv } from './lib/load-env.js';
 import { createLogger } from './lib/logger.js';
@@ -16,6 +15,9 @@ const publicUrl = (address: string, port: number) => {
 };
 
 try {
+  // Dynamic import so a missing Windows libsql .node is caught here, not as a
+  // silent module-load crash that leaves Vite returning 502.
+  const { createApp } = await import('./app.js');
   const { app, close } = await createApp({ config, logger });
 
   const server = serve({ fetch: app.fetch, port: config.PORT, hostname: config.HOST }, (info) => {
@@ -54,6 +56,8 @@ try {
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
 } catch (err) {
+  const reason = err instanceof Error ? (err.stack ?? err.message) : String(err);
+  console.error(`\n[server] failed to listen on ${config.HOST}:${config.PORT}\n${reason}\n`);
   logger.fatal({ err }, 'failed to start server');
   process.exit(1);
 }

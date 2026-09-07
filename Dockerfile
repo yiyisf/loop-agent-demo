@@ -23,6 +23,7 @@ RUN pnpm --filter @loop-agent/server deploy --prod --legacy /out/server
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     PORT=3001 \
+    HOST=0.0.0.0 \
     DATA_DIR=/app/data \
     DATABASE_URL=file:/app/data/loop-agent.db \
     STATIC_DIR=/app/public \

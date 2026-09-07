@@ -13,6 +13,7 @@ import {
 } from '@loop-agent/shared';
 import { and, asc, desc, eq, gt, inArray, notInArray } from 'drizzle-orm';
 import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
+import { resolveDatabaseUrl, sqliteFilePathFromUrl } from '../config.js';
 import { newId, nowIso } from '../lib/ids.js';
 import type { LoopAgentUIMessage } from '../runtime/ui-stream.js';
 import { applyApprovalEvent } from './approvals.js';
@@ -414,19 +415,45 @@ function rowToRun(row: RunRow): Run {
   };
 }
 
-async function ensureDirectory(url: string): Promise<void> {
-  if (!url.startsWith('file:')) return;
-  const file = url.slice('file:'.length);
-  if (file === ':memory:' || file.startsWith(':memory:')) return;
-  await mkdir(path.dirname(path.resolve(file)), { recursive: true });
+function openLibsql(url: string, filePath?: string): Client {
+  try {
+    return createClient({ url });
+  } catch (err) {
+    if (filePath) {
+      const rel = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+      if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+        return createClient({ url: `file:${rel}` });
+      }
+    }
+    throw err;
+  }
+}
+
+async function ensureDirectory(url: string): Promise<string | undefined> {
+  const file = sqliteFilePathFromUrl(url);
+  if (!file) return undefined;
+  await mkdir(path.dirname(file), { recursive: true });
+  return file;
 }
 
 export async function createSqliteStores(options: SqliteStoreOptions): Promise<Stores> {
-  await ensureDirectory(options.url);
-  const client: Client = createClient({ url: options.url });
-  await client.execute('PRAGMA journal_mode = WAL');
-  await client.execute('PRAGMA busy_timeout = 5000');
-  for (const statement of schema.MIGRATIONS) await client.execute(statement);
+  const url = resolveDatabaseUrl(options.url);
+  const filePath = await ensureDirectory(url);
+  let client: Client;
+  try {
+    client = openLibsql(url, filePath);
+    await client.execute('PRAGMA journal_mode = WAL');
+    await client.execute('PRAGMA busy_timeout = 5000');
+    for (const statement of schema.MIGRATIONS) await client.execute(statement);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Failed to open SQLite at ${url} (${reason}). ` +
+        'Use a WHATWG file URL (file:///C:/path/to.db on Windows, file:///var/path/to.db on POSIX). ' +
+        'If the native binding failed to load, run: pnpm rebuild libsql',
+      { cause: err },
+    );
+  }
 
   const db = drizzle(client, { schema });
   const runs = new SqliteRunStore(db, {

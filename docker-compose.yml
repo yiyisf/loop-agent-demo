@@ -5,6 +5,7 @@ services:
     ports:
       - "3001:3001"
     environment:
+      HOST: 0.0.0.0
       # Defaults to the offline mock model; switch to a real provider here.
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       LLM_BASE_URL: ${LLM_BASE_URL:-}

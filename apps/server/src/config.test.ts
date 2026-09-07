@@ -1,22 +1,58 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loadConfig, resolveDatabaseUrl } from './config.js';
+import {
+  loadConfig,
+  resolveDatabaseUrl,
+  sqliteFilePathFromUrl,
+  toLibsqlFileUrl,
+} from './config.js';
+
+describe('toLibsqlFileUrl', () => {
+  it('uses three slashes for Windows drive paths (libsql rejects file:C:\\...)', () => {
+    expect(toLibsqlFileUrl('C:\\Users\\me\\data\\loop-agent.db')).toBe(
+      'file:///C:/Users/me/data/loop-agent.db',
+    );
+    expect(toLibsqlFileUrl('C:/Users/me/data/loop-agent.db')).toBe(
+      'file:///C:/Users/me/data/loop-agent.db',
+    );
+  });
+
+  it('uses a WHATWG file URL for POSIX absolute paths', () => {
+    expect(toLibsqlFileUrl('/var/data/loop-agent.db')).toBe('file:///var/data/loop-agent.db');
+  });
+});
 
 describe('resolveDatabaseUrl', () => {
-  it('resolves relative file URLs and leaves absolute / memory URLs alone', () => {
+  it('resolves relative file URLs and leaves memory URLs alone', () => {
     expect(resolveDatabaseUrl('memory')).toBe('memory');
     expect(resolveDatabaseUrl('file::memory:?cache=shared')).toBe('file::memory:?cache=shared');
-    expect(resolveDatabaseUrl('file:/var/data/app.db')).toBe('file:/var/data/app.db');
+    expect(resolveDatabaseUrl('file:/var/data/app.db')).toBe('file:///var/data/app.db');
     expect(resolveDatabaseUrl('file:./data/loop-agent.db', '/repo')).toBe(
-      `file:${path.resolve('/repo', './data/loop-agent.db')}`,
+      'file:///repo/data/loop-agent.db',
+    );
+  });
+
+  it('rewrites the Windows path form that path.resolve would produce', () => {
+    expect(resolveDatabaseUrl('file:C:\\repo\\data\\loop-agent.db')).toBe(
+      'file:///C:/repo/data/loop-agent.db',
     );
   });
 });
 
+describe('sqliteFilePathFromUrl', () => {
+  it('round-trips POSIX and Windows file URLs without depending on process.platform', () => {
+    expect(sqliteFilePathFromUrl('file:///var/data/app.db')).toBe(
+      path.normalize('/var/data/app.db'),
+    );
+    expect(sqliteFilePathFromUrl('file:///C:/Users/me/data/app.db')).toBeTruthy();
+    expect(sqliteFilePathFromUrl('file::memory:?cache=shared')).toBeUndefined();
+  });
+});
+
 describe('loadConfig', () => {
-  it('defaults HOST to 0.0.0.0 so IPv4 clients can reach the server', () => {
+  it('defaults HOST to 127.0.0.1 so the Vite proxy target works on every OS', () => {
     const config = loadConfig({ DATABASE_URL: 'memory' });
-    expect(config.HOST).toBe('0.0.0.0');
+    expect(config.HOST).toBe('127.0.0.1');
     expect(config.PORT).toBe(3001);
     expect(config.DATABASE_URL).toBe('memory');
   });

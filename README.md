@@ -63,11 +63,13 @@ plan ─▶ [plan_first? 等待确认] ─▶ 选取就绪步骤(并行) ─▶ 
 ```bash
 pnpm install
 cp .env.example .env        # 默认 LLM_PROVIDER=mock，无需 API Key
-pnpm dev                    # server: http://127.0.0.1:3001   web: http://localhost:5173
+pnpm dev                    # API: http://127.0.0.1:3001   Web: http://localhost:5173
 ```
 
 服务端会从当前目录向上查找 `.env` 并加载（已有环境变量优先），不再依赖 Node 22.9+ 的 `--env-file-if-exists`。
-若 `5173` 起来但 `3001` 没有，请看终端里 `[server]` 的报错；`libsql` 原生绑定缺失时执行 `pnpm rebuild libsql`。
+`pnpm dev` 会等 `127.0.0.1:3001/health` 就绪后再启动 Vite，避免页面先出现 502。这条链路在 **Windows / macOS / Linux** 上相同：API 固定绑 IPv4 回环（避免防火墙和 IPv6 单栈），前端仍监听默认的 `localhost`（Linux 上常为 IPv6）。
+
+若 `[server]` 报错或页面 502：看终端完整日志；`libsql` 原生绑定失败时执行 `pnpm rebuild libsql`；健康检查请用 `http://127.0.0.1:3001/health`（不要只测可能走 IPv6 的 `localhost:3001`）。
 
 打开 http://localhost:5173，输入任务（例如“帮我整理一份 TypeScript 学习路线”）即可看到完整的
 规划 → 执行 → 反思 → 收尾过程。想看得更慢一些，可设置 `MOCK_DELAY_MS=800`。
@@ -96,7 +98,7 @@ SEARCH_API_KEY=tvly-...
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
 | `PORT` | `3001` | API 端口 |
-| `HOST` | `0.0.0.0` | 监听地址（保证 `127.0.0.1:3001` 可访问） |
+| `HOST` | `127.0.0.1` | API 监听地址（各系统 IPv4 回环；Docker 需设 `0.0.0.0`） |
 | `WEB_ORIGIN` | `http://localhost:5173` | 开发态 CORS 允许来源 |
 | `LOG_LEVEL` | `info` | Pino 日志级别 |
 | `DATABASE_URL` | `file:./data/loop-agent.db` | libsql URL；`memory` 为进程内存储（重启丢失） |
