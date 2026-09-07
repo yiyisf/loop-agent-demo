@@ -77,7 +77,7 @@ export function spawnPackage(kind, extraArgs = []) {
 function isEntrypoint() {
   const entry = process.argv[1];
   if (!entry) return false;
-  return path.resolve(entry) === fileURLToPath(import.meta.url);
+  return path.resolve(entry).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase();
 }
 
 if (isEntrypoint()) {
