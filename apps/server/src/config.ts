@@ -1,7 +1,10 @@
+import path from 'node:path';
 import { z } from 'zod';
 
 const ConfigSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
+  /** Bind address. `0.0.0.0` is reachable via 127.0.0.1 and LAN; `::` is IPv6. */
+  HOST: z.string().min(1).default('0.0.0.0'),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
   /** libsql URL (`file:...`) or `memory` for an in-process store. */
@@ -52,13 +55,23 @@ export type AppConfig = z.infer<typeof ConfigSchema>;
 const emptyToUndefined = (env: NodeJS.ProcessEnv) =>
   Object.fromEntries(Object.entries(env).map(([k, v]) => [k, v === '' ? undefined : v]));
 
+/** Resolve `file:./relative.db` against cwd so libsql does not depend on the process cwd later. */
+export function resolveDatabaseUrl(url: string, cwd = process.cwd()): string {
+  if (!url.startsWith('file:')) return url;
+  const rest = url.slice('file:'.length);
+  if (rest.startsWith(':memory:')) return url;
+  if (rest.startsWith('//')) return url;
+  if (path.isAbsolute(rest)) return url;
+  return `file:${path.resolve(cwd, rest)}`;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = ConfigSchema.safeParse(emptyToUndefined(env));
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Invalid configuration: ${issues}`);
   }
-  return parsed.data;
+  return { ...parsed.data, DATABASE_URL: resolveDatabaseUrl(parsed.data.DATABASE_URL) };
 }
 
 /** Models offered to the UI: LLM_MODELS (comma separated) or the default model. */

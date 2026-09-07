@@ -63,8 +63,11 @@ plan ─▶ [plan_first? 等待确认] ─▶ 选取就绪步骤(并行) ─▶ 
 ```bash
 pnpm install
 cp .env.example .env        # 默认 LLM_PROVIDER=mock，无需 API Key
-pnpm dev                    # server: http://localhost:3001   web: http://localhost:5173
+pnpm dev                    # server: http://127.0.0.1:3001   web: http://localhost:5173
 ```
+
+服务端会从当前目录向上查找 `.env` 并加载（已有环境变量优先），不再依赖 Node 22.9+ 的 `--env-file-if-exists`。
+若 `5173` 起来但 `3001` 没有，请看终端里 `[server]` 的报错；`libsql` 原生绑定缺失时执行 `pnpm rebuild libsql`。
 
 打开 http://localhost:5173，输入任务（例如“帮我整理一份 TypeScript 学习路线”）即可看到完整的
 规划 → 执行 → 反思 → 收尾过程。想看得更慢一些，可设置 `MOCK_DELAY_MS=800`。
@@ -93,6 +96,7 @@ SEARCH_API_KEY=tvly-...
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
 | `PORT` | `3001` | API 端口 |
+| `HOST` | `0.0.0.0` | 监听地址（保证 `127.0.0.1:3001` 可访问） |
 | `WEB_ORIGIN` | `http://localhost:5173` | 开发态 CORS 允许来源 |
 | `LOG_LEVEL` | `info` | Pino 日志级别 |
 | `DATABASE_URL` | `file:./data/loop-agent.db` | libsql URL；`memory` 为进程内存储（重启丢失） |
