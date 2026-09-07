@@ -17,11 +17,23 @@ export default defineConfig({
     },
   },
   server: {
+    host: '127.0.0.1',
     port: 5173,
     proxy: {
       '/api': {
         target: process.env.VITE_API_URL ?? 'http://127.0.0.1:3001',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            console.error('[vite] proxy 127.0.0.1:3001:', err.message);
+            if (res && 'writeHead' in res && !res.headersSent) {
+              res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+              res.end(
+                'Bad Gateway: API is not reachable at 127.0.0.1:3001. Check [server] logs, then pnpm rebuild libsql.',
+              );
+            }
+          });
+        },
       },
       '/health': {
         target: process.env.VITE_API_URL ?? 'http://127.0.0.1:3001',

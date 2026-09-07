@@ -67,7 +67,9 @@ pnpm dev                    # server: http://127.0.0.1:3001   web: http://localh
 ```
 
 服务端会从当前目录向上查找 `.env` 并加载（已有环境变量优先），不再依赖 Node 22.9+ 的 `--env-file-if-exists`。
-若 `5173` 起来但 `3001` 没有，请看终端里 `[server]` 的报错；`libsql` 原生绑定缺失时执行 `pnpm rebuild libsql`。
+`pnpm dev` 会等 `127.0.0.1:3001/health` 就绪后再启动 Vite，避免页面先出现 502 Bad Gateway。
+
+**Windows：** Node 22.20 可用。若 `[server]` 报错或页面 502，先执行 `pnpm rebuild libsql`，确认终端里出现 `loop-agent server listening` 且 `http://127.0.0.1:3001/health` 返回 `{"ok":true}`。不要用只绑 IPv6 的 `localhost` 测 3001。
 
 打开 http://localhost:5173，输入任务（例如“帮我整理一份 TypeScript 学习路线”）即可看到完整的
 规划 → 执行 → 反思 → 收尾过程。想看得更慢一些，可设置 `MOCK_DELAY_MS=800`。
@@ -96,7 +98,7 @@ SEARCH_API_KEY=tvly-...
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
 | `PORT` | `3001` | API 端口 |
-| `HOST` | `0.0.0.0` | 监听地址（保证 `127.0.0.1:3001` 可访问） |
+| `HOST` | `127.0.0.1` | 监听地址（避免 Windows 防火墙拦截 `0.0.0.0`；Docker 需设 `0.0.0.0`） |
 | `WEB_ORIGIN` | `http://localhost:5173` | 开发态 CORS 允许来源 |
 | `LOG_LEVEL` | `info` | Pino 日志级别 |
 | `DATABASE_URL` | `file:./data/loop-agent.db` | libsql URL；`memory` 为进程内存储（重启丢失） |

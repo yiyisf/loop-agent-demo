@@ -1,10 +1,14 @@
 import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 
 const ConfigSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
-  /** Bind address. `0.0.0.0` is reachable via 127.0.0.1 and LAN; `::` is IPv6. */
-  HOST: z.string().min(1).default('0.0.0.0'),
+  /**
+   * Bind address. `127.0.0.1` avoids the Windows firewall prompt that `0.0.0.0`
+   * triggers; set `0.0.0.0` in Docker so the published port is reachable.
+   */
+  HOST: z.string().min(1).default('127.0.0.1'),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
   /** libsql URL (`file:...`) or `memory` for an in-process store. */
@@ -55,14 +59,45 @@ export type AppConfig = z.infer<typeof ConfigSchema>;
 const emptyToUndefined = (env: NodeJS.ProcessEnv) =>
   Object.fromEntries(Object.entries(env).map(([k, v]) => [k, v === '' ? undefined : v]));
 
-/** Resolve `file:./relative.db` against cwd so libsql does not depend on the process cwd later. */
+/**
+ * libsql only accepts WHATWG `file:` URLs or relative `file:./x.db` paths.
+ * `file:C:\foo\bar.db` (what `path.resolve` produces on Windows) is rejected
+ * and the API process exits before it can listen — Vite then returns 502.
+ */
+export function toLibsqlFileUrl(fsPath: string): string {
+  const normalized = fsPath.replace(/\\/g, '/');
+  if (/^[A-Za-z]:\//.test(normalized)) return `file:///${normalized}`;
+  if (normalized.startsWith('/')) return `file://${normalized}`;
+  return pathToFileURL(path.resolve(fsPath)).href;
+}
+
+/** Resolve `file:./relative.db` (and Windows `file:C:\...`) to a libsql-safe URL. */
 export function resolveDatabaseUrl(url: string, cwd = process.cwd()): string {
   if (!url.startsWith('file:')) return url;
   const rest = url.slice('file:'.length);
   if (rest.startsWith(':memory:')) return url;
   if (rest.startsWith('//')) return url;
-  if (path.isAbsolute(rest)) return url;
-  return `file:${path.resolve(cwd, rest)}`;
+
+  if (/^[A-Za-z]:[\\/]/.test(rest)) return toLibsqlFileUrl(rest);
+  if (rest.startsWith('/')) return toLibsqlFileUrl(rest);
+
+  return toLibsqlFileUrl(path.resolve(cwd, rest));
+}
+
+/** Filesystem path for a `file:` libsql URL, or `undefined` for memory URLs. */
+export function sqliteFilePathFromUrl(url: string): string | undefined {
+  if (!url.startsWith('file:')) return undefined;
+  const rest = url.slice('file:'.length);
+  if (rest.startsWith(':memory:')) return undefined;
+  if (rest.startsWith('//') || rest.startsWith('/')) {
+    try {
+      return fileURLToPath(url.startsWith('file://') ? url : `file://${rest}`);
+    } catch {
+      return path.resolve(rest);
+    }
+  }
+  if (/^[A-Za-z]:[\\/]/.test(rest)) return rest;
+  return path.resolve(rest);
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
