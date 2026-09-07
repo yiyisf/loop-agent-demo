@@ -15,8 +15,6 @@ const publicUrl = (address: string, port: number) => {
 };
 
 try {
-  // Dynamic import so a missing Windows libsql .node is caught here, not as a
-  // silent module-load crash that leaves Vite returning 502.
   const { createApp } = await import('./app.js');
   const { app, close } = await createApp({ config, logger });
 

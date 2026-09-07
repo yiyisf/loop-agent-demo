@@ -129,7 +129,7 @@ flowchart LR
 | AI 编排 | Vercel AI SDK `ai` | 7.0.x | `ToolLoopAgent`（步骤执行循环）、`generateObject`/`Output.object`（结构化规划）、`createUIMessageStream`（自定义 data parts）、`toolApproval`（审批）、`ai/test` mock 模型 |
 | 模型提供方 | `@ai-sdk/openai`、`@ai-sdk/openai-compatible`、`@ai-sdk/anthropic` | 4.x / 3.x / 4.x | 通过环境变量切换；`openai-compatible` 覆盖国内外大部分兼容网关 |
 | Schema | Zod | 4.x | AI SDK 工具/结构化输出的一等公民 |
-| ORM/DB | Drizzle ORM + SQLite（`@libsql/client`） | 0.45 / 0.18 | 零运维、类型安全；后续可切 Turso/Postgres |
+| ORM/DB | Drizzle ORM + SQLite（Node `node:sqlite`） | 0.45 / Node 22 | 零运维、无额外原生绑定；后续可切 Postgres / Turso |
 | 前端构建 | Vite + React 19 | 8.x / 19.x | 快速、生态成熟 |
 | 路由/数据 | TanStack Router（文件路由）+ TanStack Query | 1.x / 5.x | 类型安全路由；Query 管理会话列表、运行详情等非流式数据 |
 | 聊天状态 | `@ai-sdk/react` `useChat` + `DefaultChatTransport` | 4.x | 直接消费 UI Message Stream，含工具分片、审批分片、data parts |
@@ -894,7 +894,7 @@ loop-agent-demo/
 | D3 | Event 为唯一事实来源，UI 流与持久化同源 | 分别维护状态与流 | 一致性、重连回放天然可得 |
 | D4 | 复用 AI SDK UI Message Stream + 自定义 data parts | 自定义 WebSocket 协议 | 直接复用 `useChat`、工具/审批分片语义与 AI Elements 组件 |
 | D5 | Hono 而非 Next.js/Express | Next.js Route Handlers | 前后端物理分离更清晰，服务端可独立部署/测试；Web 标准 API 与 AI SDK 契合 |
-| D6 | SQLite（libsql）单机 | Postgres | 基础版零运维；Drizzle 保证后续迁移成本低 |
+| D6 | SQLite 单机（实现改为 Node 内置 `node:sqlite`） | Postgres；`@libsql/client` | 基础版零运维；Drizzle 保证后续迁移成本低。libsql 额外原生绑定在 Windows 上加载失败会让 API 无法 listen，故不再作为默认驱动 |
 | D7 | `finish_step` 工具作为步骤结构化收尾 | 解析自由文本 | 可靠、可校验，与 `hasToolCall` 停止条件配合 |
 | D8 | 成功步骤默认规则反思、失败步骤 LLM 反思 | 每步都 LLM 反思 | 控制成本与延迟 |
 | D9 | 服务端只信任 DB 历史，客户端仅提交最新输入 | 客户端回传全量消息 | 防篡改、减少带宽 |

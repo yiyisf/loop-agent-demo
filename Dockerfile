@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile
 COPY packages ./packages
 COPY apps ./apps
 RUN pnpm build
-# Production-only node_modules for the server (native @libsql/client included).
+# Production-only node_modules for the server (SQLite is Node's built-in node:sqlite).
 RUN pnpm --filter @loop-agent/server deploy --prod --legacy /out/server
 
 # ---- runtime stage: single process serving API + static web app ----

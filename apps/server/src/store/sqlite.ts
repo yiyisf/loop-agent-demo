@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { type Client, createClient } from '@libsql/client';
+import { DatabaseSync } from 'node:sqlite';
 import {
   type Approval,
   type Budget,
@@ -12,15 +12,16 @@ import {
   type Usage,
 } from '@loop-agent/shared';
 import { and, asc, desc, eq, gt, inArray, notInArray } from 'drizzle-orm';
-import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
-import { resolveDatabaseUrl, sqliteFilePathFromUrl } from '../config.js';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import { drizzle } from 'drizzle-orm/sqlite-proxy';
+import { resolveSqlitePath } from '../config.js';
 import { newId, nowIso } from '../lib/ids.js';
 import type { LoopAgentUIMessage } from '../runtime/ui-stream.js';
 import { applyApprovalEvent } from './approvals.js';
 import * as schema from './schema.js';
 import type { RunStore, StoredArtifact, Stores, ThreadStore } from './types.js';
 
-type Db = LibSQLDatabase<typeof schema>;
+type Db = BaseSQLiteDatabase<'async', unknown, typeof schema>;
 
 export interface SqliteStoreOptions {
   url: string;
@@ -415,47 +416,44 @@ function rowToRun(row: RunRow): Run {
   };
 }
 
-function openLibsql(url: string, filePath?: string): Client {
-  try {
-    return createClient({ url });
-  } catch (err) {
-    if (filePath) {
-      const rel = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
-      if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
-        return createClient({ url: `file:${rel}` });
-      }
-    }
-    throw err;
-  }
+function bindParams(params: unknown[]): never[] {
+  return params as never[];
 }
 
-async function ensureDirectory(url: string): Promise<string | undefined> {
-  const file = sqliteFilePathFromUrl(url);
-  if (!file) return undefined;
-  await mkdir(path.dirname(file), { recursive: true });
-  return file;
+function queryNodeSqlite(
+  sqlite: DatabaseSync,
+  sql: string,
+  params: unknown[],
+  method: 'run' | 'all' | 'values' | 'get',
+): { rows: unknown[] } {
+  const stmt = sqlite.prepare(sql);
+  if (method === 'run') {
+    stmt.run(...bindParams(params));
+    return { rows: [] };
+  }
+  if (method === 'get') {
+    const row = stmt.get(...bindParams(params));
+    return { rows: row ? [Object.values(row as Record<string, unknown>)] : [] };
+  }
+  const rows = stmt.all(...bindParams(params)) as Record<string, unknown>[];
+  return { rows: rows.map((r) => Object.values(r)) };
 }
 
 export async function createSqliteStores(options: SqliteStoreOptions): Promise<Stores> {
-  const url = resolveDatabaseUrl(options.url);
-  const filePath = await ensureDirectory(url);
-  let client: Client;
-  try {
-    client = openLibsql(url, filePath);
-    await client.execute('PRAGMA journal_mode = WAL');
-    await client.execute('PRAGMA busy_timeout = 5000');
-    for (const statement of schema.MIGRATIONS) await client.execute(statement);
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      `Failed to open SQLite at ${url} (${reason}). ` +
-        'Use a WHATWG file URL (file:///C:/path/to.db on Windows, file:///var/path/to.db on POSIX). ' +
-        'If the native binding failed to load, run: pnpm rebuild libsql',
-      { cause: err },
-    );
+  const filePath = resolveSqlitePath(options.url);
+  if (!filePath) {
+    throw new Error(`DATABASE_URL=${options.url} selects the memory store, not SQLite`);
   }
+  await mkdir(path.dirname(filePath), { recursive: true });
 
-  const db = drizzle(client, { schema });
+  const sqlite = new DatabaseSync(filePath);
+  sqlite.exec('PRAGMA journal_mode = WAL');
+  sqlite.exec('PRAGMA busy_timeout = 5000');
+  for (const statement of schema.MIGRATIONS) sqlite.exec(statement);
+
+  const db = drizzle(async (sql, params, method) => queryNodeSqlite(sqlite, sql, params, method), {
+    schema,
+  });
   const runs = new SqliteRunStore(db, {
     flushIntervalMs: options.flushIntervalMs ?? 50,
     flushBatchSize: options.flushBatchSize ?? 20,
@@ -468,7 +466,7 @@ export async function createSqliteStores(options: SqliteStoreOptions): Promise<S
     runs,
     close: async () => {
       await runs.close();
-      client.close();
+      sqlite.close();
     },
   };
 }
