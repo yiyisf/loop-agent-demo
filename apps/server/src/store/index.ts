@@ -1,12 +1,29 @@
-import type { AppConfig } from '../config.js';
+import { type AppConfig, resolveSqlitePath } from '../config.js';
+import type { Logger } from '../lib/logger.js';
 import { createMemoryStores } from './memory.js';
-import { createSqliteStores } from './sqlite.js';
 import type { Stores } from './types.js';
 
 export type { RunStore, Stores, ThreadStore } from './types.js';
 
-/** `DATABASE_URL=memory` keeps everything in-process (tests, ephemeral demos). */
-export async function createStores(config: AppConfig): Promise<Stores> {
-  if (config.DATABASE_URL === 'memory') return createMemoryStores();
-  return createSqliteStores({ url: config.DATABASE_URL });
+/**
+ * File persistence uses Node's built-in `node:sqlite` (no extra native addon).
+ * If opening the file fails, fall back to memory so the HTTP server still listens.
+ */
+export async function createStores(config: AppConfig, logger?: Logger): Promise<Stores> {
+  if (resolveSqlitePath(config.DATABASE_URL) === null) {
+    logger?.info('using in-memory store');
+    return createMemoryStores();
+  }
+  try {
+    const { createSqliteStores } = await import('./sqlite.js');
+    const stores = await createSqliteStores({ url: config.DATABASE_URL });
+    logger?.info({ file: config.DATABASE_URL }, 'sqlite file store (persists across restarts)');
+    return stores;
+  } catch (err) {
+    logger?.warn(
+      { err, database: config.DATABASE_URL },
+      'could not open the sqlite file; using memory store (THIS process only — restart will look empty)',
+    );
+    return createMemoryStores();
+  }
 }

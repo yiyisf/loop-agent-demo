@@ -41,7 +41,7 @@
 │                          ├─ Reflector (成功/失败后决定 继续 / 修订计划 / 收尾) │
 │                          └─ Finalizer (汇总最终回答)                        │
 │  EventBus ──▶ 事件即真相：UI 流投影(ui-stream) · 快照投影(projections) · 持久化 │
-│  Tools: registry + approval 中间件 · Stores: memory | sqlite (Drizzle)       │
+│  Tools: registry + approval 中间件 · Stores: memory | sqlite (node:sqlite + Drizzle) │
 └────────────────────────────────────────────────────────────────────────────┘
 packages/shared：前后端共享的 Zod 契约（Plan / Step / Run / Event / UI data parts / 请求体）
 ```
@@ -69,7 +69,7 @@ pnpm dev                    # API: http://127.0.0.1:3001   Web: http://localhost
 服务端会从当前目录向上查找 `.env` 并加载（已有环境变量优先），不再依赖 Node 22.9+ 的 `--env-file-if-exists`。
 `pnpm dev` 会等 `127.0.0.1:3001/health` 就绪后再启动 Vite，避免页面先出现 502。这条链路在 **Windows / macOS / Linux** 上相同：API 固定绑 IPv4 回环（避免防火墙和 IPv6 单栈），前端仍监听默认的 `localhost`（Linux 上常为 IPv6）。
 
-若 `[server]` 报错或页面 502：看终端完整日志；`libsql` 原生绑定失败时执行 `pnpm rebuild libsql`；健康检查请用 `http://127.0.0.1:3001/health`（不要只测可能走 IPv6 的 `localhost:3001`）。
+若页面 502：看终端 `[server]` 日志。健康检查请用 `http://127.0.0.1:3001/health`（不要只测可能走 IPv6 的 `localhost:3001`）。`/health` 的 `store` 字段为 `sqlite`（已落盘）或 `memory`（打开文件失败时的回退，重启丢失）。
 
 打开 http://localhost:5173，输入任务（例如“帮我整理一份 TypeScript 学习路线”）即可看到完整的
 规划 → 执行 → 反思 → 收尾过程。想看得更慢一些，可设置 `MOCK_DELAY_MS=800`。
@@ -101,7 +101,7 @@ SEARCH_API_KEY=tvly-...
 | `HOST` | `127.0.0.1` | API 监听地址（各系统 IPv4 回环；Docker 需设 `0.0.0.0`） |
 | `WEB_ORIGIN` | `http://localhost:5173` | 开发态 CORS 允许来源 |
 | `LOG_LEVEL` | `info` | Pino 日志级别 |
-| `DATABASE_URL` | `file:./data/loop-agent.db` | libsql URL；`memory` 为进程内存储（重启丢失） |
+| `DATABASE_URL` | `file:./data/loop-agent.db` | SQLite **文件**，重启后会话仍在。只有设成 `memory`（或文件打开失败回退）才会重启丢失 |
 | `DATA_DIR` | `./data` | 工具产物工作区 |
 | `STATIC_DIR` | — | 设置后由 API 进程同源托管构建好的前端（生产模式） |
 | `LLM_PROVIDER` | `mock` | `openai` / `openai-compatible` / `anthropic` / `mock` |
@@ -222,6 +222,10 @@ LLM_PROVIDER=openai LLM_API_KEY=sk-... docker compose up -d   # 使用真实模�
   发起任务并完成 → 运行中刷新页面自动恢复 → 工具审批 → `plan_first` 计划确认。
 
 ## 常见问题
+
+**为什么不用 libsql / 为什么 3001 会因为数据库挂掉？** — 设计里选 `@libsql/client` 是为了单机 SQLite + 以后能迁 Turso。它是额外的原生绑定，Windows 上加载失败时旧实现会在 `listen` 之前退出，Vite 就 502。现在改为 Node 22 自带的 `node:sqlite`（随运行时分发，不再 `pnpm rebuild`）；文件打不开时回退内存存储，**HTTP 服务照样启动**。
+
+**`.env` 写了 SQLite，重启数据怎么还没了？** — 默认 `DATABASE_URL=file:./data/loop-agent.db` **会落盘**。注释里 “lost on restart / 重启丢失” 只适用于 `DATABASE_URL=memory`。打开 `http://127.0.0.1:3001/health`：`persist: true` 才是文件库；`store: "memory"` 表示你显式设了 memory，或文件没打开成功（看 `[server]` 的 warn）。
 
 **启动报 `Invalid configuration`** — 某个环境变量不合法（例如 `LLM_PROVIDER` 拼写错误），错误信息会列出具体字段。
 
