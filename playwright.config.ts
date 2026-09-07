@@ -16,7 +16,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: `http://127.0.0.1:${WEB_PORT}`,
+    baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
     ...devices['Desktop Chrome'],
   },
@@ -28,7 +28,7 @@ export default defineConfig({
       timeout: 60_000,
       env: {
         PORT: String(SERVER_PORT),
-        WEB_ORIGIN: `http://127.0.0.1:${WEB_PORT}`,
+        WEB_ORIGIN: `http://localhost:${WEB_PORT}`,
         LLM_PROVIDER: 'mock',
         DATABASE_URL: 'memory',
         DATA_DIR: './data/e2e',
@@ -38,7 +38,7 @@ export default defineConfig({
     },
     {
       command: `pnpm --filter @loop-agent/web exec vite --port ${WEB_PORT} --strictPort`,
-      url: `http://127.0.0.1:${WEB_PORT}`,
+      url: `http://localhost:${WEB_PORT}`,
       reuseExistingServer: false,
       timeout: 60_000,
       env: { VITE_API_URL: `http://127.0.0.1:${SERVER_PORT}` },

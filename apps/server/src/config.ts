@@ -5,8 +5,8 @@ import { z } from 'zod';
 const ConfigSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   /**
-   * Bind address. `127.0.0.1` avoids the Windows firewall prompt that `0.0.0.0`
-   * triggers; set `0.0.0.0` in Docker so the published port is reachable.
+   * Bind address. IPv4 loopback works on Windows, macOS, and Linux, and avoids
+   * the Windows firewall prompt that `0.0.0.0` triggers. Docker sets `0.0.0.0`.
    */
   HOST: z.string().min(1).default('127.0.0.1'),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),
@@ -60,9 +60,9 @@ const emptyToUndefined = (env: NodeJS.ProcessEnv) =>
   Object.fromEntries(Object.entries(env).map(([k, v]) => [k, v === '' ? undefined : v]));
 
 /**
- * libsql only accepts WHATWG `file:` URLs or relative `file:./x.db` paths.
- * `file:C:\foo\bar.db` (what `path.resolve` produces on Windows) is rejected
- * and the API process exits before it can listen — Vite then returns 502.
+ * Convert a filesystem path to a libsql-safe `file:` URL on every OS.
+ * Relative `file:./x.db` is fine; `path.resolve` on Windows yields `C:\...`,
+ * and `file:C:\...` is rejected. POSIX `/var/...` becomes `file:///var/...`.
  */
 export function toLibsqlFileUrl(fsPath: string): string {
   const normalized = fsPath.replace(/\\/g, '/');

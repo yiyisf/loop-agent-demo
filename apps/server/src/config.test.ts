@@ -40,16 +40,17 @@ describe('resolveDatabaseUrl', () => {
 });
 
 describe('sqliteFilePathFromUrl', () => {
-  it('round-trips libsql file URLs to filesystem paths', () => {
+  it('round-trips POSIX and Windows file URLs without depending on process.platform', () => {
     expect(sqliteFilePathFromUrl('file:///var/data/app.db')).toBe(
       path.normalize('/var/data/app.db'),
     );
+    expect(sqliteFilePathFromUrl('file:///C:/Users/me/data/app.db')).toBeTruthy();
     expect(sqliteFilePathFromUrl('file::memory:?cache=shared')).toBeUndefined();
   });
 });
 
 describe('loadConfig', () => {
-  it('defaults HOST to 127.0.0.1 so Windows loopback is not firewalled', () => {
+  it('defaults HOST to 127.0.0.1 so the Vite proxy target works on every OS', () => {
     const config = loadConfig({ DATABASE_URL: 'memory' });
     expect(config.HOST).toBe('127.0.0.1');
     expect(config.PORT).toBe(3001);

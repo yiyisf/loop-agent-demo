@@ -1,7 +1,7 @@
 /**
- * Start Vite only after the API answers /health.
- * On Windows, tsx's first compile + libsql load can take several seconds;
- * if Vite proxies before listen, the page shows 502 Bad Gateway.
+ * Start Vite only after the API answers /health on IPv4 loopback
+ * (same URL on Windows, macOS, and Linux). Slow first compile otherwise
+ * makes the page show 502 Bad Gateway.
  */
 import { spawn } from 'node:child_process';
 
@@ -29,7 +29,7 @@ async function waitForApi() {
   }
   console.error(
     `[web] API did not become ready at ${health} (${lastErr}).\n` +
-      'Look at the [server] lines above. On Windows: pnpm rebuild libsql',
+      'Look at the [server] lines above. If libsql failed to load: pnpm rebuild libsql',
   );
   process.exit(1);
 }
@@ -37,7 +37,8 @@ async function waitForApi() {
 await waitForApi();
 const child = spawn('pnpm', ['--filter', '@loop-agent/web', 'dev'], {
   stdio: 'inherit',
-  shell: process.platform === 'win32',
+  // cmd.exe needs this to resolve pnpm.cmd; POSIX shells resolve `pnpm` too.
+  shell: true,
 });
 child.on('exit', (code, signal) => {
   if (signal) process.kill(process.pid, signal);

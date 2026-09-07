@@ -449,7 +449,7 @@ export async function createSqliteStores(options: SqliteStoreOptions): Promise<S
     const reason = err instanceof Error ? err.message : String(err);
     throw new Error(
       `Failed to open SQLite at ${url} (${reason}). ` +
-        'On Windows the URL must look like file:///C:/path/to.db. ' +
+        'Use a WHATWG file URL (file:///C:/path/to.db on Windows, file:///var/path/to.db on POSIX). ' +
         'If the native binding failed to load, run: pnpm rebuild libsql',
       { cause: err },
     );
