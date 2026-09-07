@@ -1,51 +1,27 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  loadConfig,
-  resolveDatabaseUrl,
-  sqliteFilePathFromUrl,
-  toLibsqlFileUrl,
-} from './config.js';
+import { loadConfig, resolveSqlitePath } from './config.js';
 
-describe('toLibsqlFileUrl', () => {
-  it('uses three slashes for Windows drive paths (libsql rejects file:C:\\...)', () => {
-    expect(toLibsqlFileUrl('C:\\Users\\me\\data\\loop-agent.db')).toBe(
-      'file:///C:/Users/me/data/loop-agent.db',
-    );
-    expect(toLibsqlFileUrl('C:/Users/me/data/loop-agent.db')).toBe(
-      'file:///C:/Users/me/data/loop-agent.db',
+describe('resolveSqlitePath', () => {
+  it('treats memory URLs as in-process', () => {
+    expect(resolveSqlitePath('memory')).toBeNull();
+    expect(resolveSqlitePath(':memory:')).toBeNull();
+    expect(resolveSqlitePath('file::memory:?cache=shared')).toBeNull();
+  });
+
+  it('resolves POSIX file URLs and relative paths', () => {
+    expect(resolveSqlitePath('file:/var/data/app.db')).toBe(path.normalize('/var/data/app.db'));
+    expect(resolveSqlitePath('file:///var/data/app.db')).toBe(path.normalize('/var/data/app.db'));
+    expect(resolveSqlitePath('file:./data/loop-agent.db', '/repo')).toBe(
+      path.resolve('/repo', './data/loop-agent.db'),
     );
   });
 
-  it('uses a WHATWG file URL for POSIX absolute paths', () => {
-    expect(toLibsqlFileUrl('/var/data/loop-agent.db')).toBe('file:///var/data/loop-agent.db');
-  });
-});
-
-describe('resolveDatabaseUrl', () => {
-  it('resolves relative file URLs and leaves memory URLs alone', () => {
-    expect(resolveDatabaseUrl('memory')).toBe('memory');
-    expect(resolveDatabaseUrl('file::memory:?cache=shared')).toBe('file::memory:?cache=shared');
-    expect(resolveDatabaseUrl('file:/var/data/app.db')).toBe('file:///var/data/app.db');
-    expect(resolveDatabaseUrl('file:./data/loop-agent.db', '/repo')).toBe(
-      'file:///repo/data/loop-agent.db',
+  it('keeps Windows drive paths as native filesystem paths (node:sqlite, not file: URLs)', () => {
+    expect(resolveSqlitePath('file:C:\\repo\\data\\loop-agent.db')).toBe(
+      'C:\\repo\\data\\loop-agent.db',
     );
-  });
-
-  it('rewrites the Windows path form that path.resolve would produce', () => {
-    expect(resolveDatabaseUrl('file:C:\\repo\\data\\loop-agent.db')).toBe(
-      'file:///C:/repo/data/loop-agent.db',
-    );
-  });
-});
-
-describe('sqliteFilePathFromUrl', () => {
-  it('round-trips POSIX and Windows file URLs without depending on process.platform', () => {
-    expect(sqliteFilePathFromUrl('file:///var/data/app.db')).toBe(
-      path.normalize('/var/data/app.db'),
-    );
-    expect(sqliteFilePathFromUrl('file:///C:/Users/me/data/app.db')).toBeTruthy();
-    expect(sqliteFilePathFromUrl('file::memory:?cache=shared')).toBeUndefined();
+    expect(resolveSqlitePath('C:/repo/data/loop-agent.db')).toBe('C:/repo/data/loop-agent.db');
   });
 });
 
@@ -55,5 +31,12 @@ describe('loadConfig', () => {
     expect(config.HOST).toBe('127.0.0.1');
     expect(config.PORT).toBe(3001);
     expect(config.DATABASE_URL).toBe('memory');
+  });
+
+  it('stores an absolute sqlite path so restarts keep using the same file', () => {
+    const config = loadConfig({ DATABASE_URL: 'file:./data/loop-agent.db', DATA_DIR: './data' });
+    expect(path.isAbsolute(config.DATABASE_URL)).toBe(true);
+    expect(config.DATABASE_URL.endsWith(`${path.sep}data${path.sep}loop-agent.db`)).toBe(true);
+    expect(path.isAbsolute(config.DATA_DIR)).toBe(true);
   });
 });

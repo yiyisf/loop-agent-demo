@@ -15,10 +15,8 @@ const publicUrl = (address: string, port: number) => {
 };
 
 try {
-  // Dynamic import so a missing Windows libsql .node is caught here, not as a
-  // silent module-load crash that leaves Vite returning 502.
   const { createApp } = await import('./app.js');
-  const { app, close } = await createApp({ config, logger });
+  const { app, close, ctx } = await createApp({ config, logger });
 
   const server = serve({ fetch: app.fetch, port: config.PORT, hostname: config.HOST }, (info) => {
     logger.info(
@@ -28,6 +26,8 @@ try {
         url: publicUrl(info.address, info.port),
         provider: config.LLM_PROVIDER,
         model: config.LLM_MODEL,
+        store: ctx.stores.kind,
+        persist: ctx.stores.kind === 'sqlite',
         database: config.DATABASE_URL,
       },
       'loop-agent server listening',
