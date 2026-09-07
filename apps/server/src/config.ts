@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 const ConfigSchema = z.object({
@@ -11,7 +11,7 @@ const ConfigSchema = z.object({
   HOST: z.string().min(1).default('127.0.0.1'),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
-  /** libsql URL (`file:...`) or `memory` for an in-process store. */
+  /** Filesystem path, `file:...` URL, or `memory` for an in-process store. */
   DATABASE_URL: z.string().default('file:./data/loop-agent.db'),
   DATA_DIR: z.string().default('./data'),
   /** When set, the built web app in this directory is served on the same origin. */
@@ -60,44 +60,29 @@ const emptyToUndefined = (env: NodeJS.ProcessEnv) =>
   Object.fromEntries(Object.entries(env).map(([k, v]) => [k, v === '' ? undefined : v]));
 
 /**
- * Convert a filesystem path to a libsql-safe `file:` URL on every OS.
- * Relative `file:./x.db` is fine; `path.resolve` on Windows yields `C:\...`,
- * and `file:C:\...` is rejected. POSIX `/var/...` becomes `file:///var/...`.
+ * Resolve DATABASE_URL to a filesystem path for `node:sqlite`.
+ * Returns `null` for the in-memory store. Accepts `memory`, `:memory:`,
+ * `file:./relative.db`, WHATWG `file:///...`, and raw OS paths (including `C:\...`).
  */
-export function toLibsqlFileUrl(fsPath: string): string {
-  const normalized = fsPath.replace(/\\/g, '/');
-  if (/^[A-Za-z]:\//.test(normalized)) return `file:///${normalized}`;
-  if (normalized.startsWith('/')) return `file://${normalized}`;
-  return pathToFileURL(path.resolve(fsPath)).href;
-}
+export function resolveSqlitePath(url: string, cwd = process.cwd()): string | null {
+  const trimmed = url.trim();
+  if (trimmed === 'memory' || trimmed === ':memory:' || trimmed.startsWith('file::memory:')) {
+    return null;
+  }
+  const raw = trimmed.startsWith('file:') ? trimmed.slice('file:'.length) : trimmed;
+  if (raw.startsWith(':memory:')) return null;
 
-/** Resolve `file:./relative.db` (and Windows `file:C:\...`) to a libsql-safe URL. */
-export function resolveDatabaseUrl(url: string, cwd = process.cwd()): string {
-  if (!url.startsWith('file:')) return url;
-  const rest = url.slice('file:'.length);
-  if (rest.startsWith(':memory:')) return url;
-  if (rest.startsWith('//')) return url;
-
-  if (/^[A-Za-z]:[\\/]/.test(rest)) return toLibsqlFileUrl(rest);
-  if (rest.startsWith('/')) return toLibsqlFileUrl(rest);
-
-  return toLibsqlFileUrl(path.resolve(cwd, rest));
-}
-
-/** Filesystem path for a `file:` libsql URL, or `undefined` for memory URLs. */
-export function sqliteFilePathFromUrl(url: string): string | undefined {
-  if (!url.startsWith('file:')) return undefined;
-  const rest = url.slice('file:'.length);
-  if (rest.startsWith(':memory:')) return undefined;
-  if (rest.startsWith('//') || rest.startsWith('/')) {
+  if (raw.startsWith('//')) {
     try {
-      return fileURLToPath(url.startsWith('file://') ? url : `file://${rest}`);
+      return fileURLToPath(trimmed.startsWith('file:') ? trimmed : `file:${raw}`);
     } catch {
-      return path.resolve(rest);
+      const withoutSlashes = raw.replace(/^\/+/, '');
+      if (/^[A-Za-z]:[\\/]/.test(withoutSlashes)) return withoutSlashes;
     }
   }
-  if (/^[A-Za-z]:[\\/]/.test(rest)) return rest;
-  return path.resolve(rest);
+  if (/^[A-Za-z]:[\\/]/.test(raw)) return raw;
+  if (path.isAbsolute(raw) || raw.startsWith('/')) return raw;
+  return path.resolve(cwd, raw);
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -106,7 +91,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Invalid configuration: ${issues}`);
   }
-  return { ...parsed.data, DATABASE_URL: resolveDatabaseUrl(parsed.data.DATABASE_URL) };
+  return parsed.data;
 }
 
 /** Models offered to the UI: LLM_MODELS (comma separated) or the default model. */

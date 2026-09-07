@@ -29,7 +29,7 @@ async function waitForApi() {
   }
   console.error(
     `[web] API did not become ready at ${health} (${lastErr}).\n` +
-      'Look at the [server] lines above. If libsql failed to load: pnpm rebuild libsql',
+      'Look at the [server] lines above.',
   );
   process.exit(1);
 }

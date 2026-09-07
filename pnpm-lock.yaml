@@ -38,9 +38,6 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.7)
-      '@libsql/client':
-        specifier: ^0.18.0
-        version: 0.18.0
       '@loop-agent/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -4255,10 +4252,12 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    optional: true
 
   '@libsql/core@0.18.0':
     dependencies:
       js-base64: 3.9.3
+    optional: true
 
   '@libsql/darwin-arm64@0.5.29':
     optional: true
@@ -4273,6 +4272,7 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    optional: true
 
   '@libsql/isomorphic-ws@0.1.5':
     dependencies:
@@ -4281,6 +4281,7 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+    optional: true
 
   '@libsql/linux-arm-gnueabihf@0.5.29':
     optional: true
@@ -4306,7 +4307,8 @@ snapshots:
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
 
-  '@neon-rs/load@0.0.4': {}
+  '@neon-rs/load@0.0.4':
+    optional: true
 
   '@oxc-project/types@0.148.0': {}
 
@@ -5443,6 +5445,7 @@ snapshots:
   '@types/ws@8.18.1':
     dependencies:
       '@types/node': 22.20.1
+    optional: true
 
   '@ungap/structured-clone@1.4.0': {}
 
@@ -5702,7 +5705,8 @@ snapshots:
 
   dequal@2.0.3: {}
 
-  detect-libc@2.0.2: {}
+  detect-libc@2.0.2:
+    optional: true
 
   detect-libc@2.1.2: {}
 
@@ -5968,7 +5972,8 @@ snapshots:
 
   joycon@3.1.1: {}
 
-  js-base64@3.9.3: {}
+  js-base64@3.9.3:
+    optional: true
 
   js-tokens@4.0.0: {}
 
@@ -6018,6 +6023,7 @@ snapshots:
       '@libsql/linux-x64-gnu': 0.5.29
       '@libsql/linux-x64-musl': 0.5.29
       '@libsql/win32-x64-msvc': 0.5.29
+    optional: true
 
   lightningcss-android-arm64@1.32.0:
     optional: true
@@ -6644,7 +6650,8 @@ snapshots:
 
   process-warning@5.1.0: {}
 
-  promise-limit@2.7.0: {}
+  promise-limit@2.7.0:
+    optional: true
 
   property-information@7.2.0: {}
 
@@ -7304,7 +7311,8 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.21.3: {}
+  ws@8.21.3:
+    optional: true
 
   xml-name-validator@5.0.0: {}
 

@@ -39,7 +39,7 @@ export interface AppContext {
 
 export async function createApp(deps: AppDeps) {
   const { config, logger } = deps;
-  const stores = deps.stores ?? (await createStores(config));
+  const stores = deps.stores ?? (await createStores(config, logger));
   const tools = deps.tools ?? createDefaultToolRegistry(config);
   const modelProvider = deps.modelProvider ?? createModelProvider(config);
 
@@ -98,7 +98,9 @@ export async function createApp(deps: AppDeps) {
     }
   });
 
-  app.get('/health', (c) => c.json({ ok: true }));
+  app.get('/health', (c) =>
+    c.json({ ok: true, store: stores.kind, persist: stores.kind === 'sqlite' }),
+  );
   app.route('/api', metaRoutes(ctx));
   app.route('/api/threads', threadRoutes(ctx));
   app.route('/api/runs', runRoutes(ctx));
