@@ -22,7 +22,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'pnpm --filter @loop-agent/server dev',
+      command: 'node scripts/run-pkg.mjs server',
       url: `http://127.0.0.1:${SERVER_PORT}/health`,
       reuseExistingServer: false,
       timeout: 60_000,
@@ -37,7 +37,7 @@ export default defineConfig({
       },
     },
     {
-      command: `pnpm --filter @loop-agent/web exec vite --port ${WEB_PORT} --strictPort`,
+      command: `node scripts/run-pkg.mjs web --port ${WEB_PORT} --strictPort`,
       url: `http://localhost:${WEB_PORT}`,
       reuseExistingServer: false,
       timeout: 60_000,
