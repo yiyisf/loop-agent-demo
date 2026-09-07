@@ -67,9 +67,9 @@ pnpm dev                    # API: http://127.0.0.1:3001   Web: http://localhost
 ```
 
 服务端会从当前目录向上查找 `.env` 并加载（已有环境变量优先），不再依赖 Node 22.9+ 的 `--env-file-if-exists`。
-`pnpm dev` 会等 `127.0.0.1:3001/health` 就绪后再启动 Vite，避免页面先出现 502。这条链路在 **Windows / macOS / Linux** 上相同：API 固定绑 IPv4 回环（避免防火墙和 IPv6 单栈），前端仍监听默认的 `localhost`（Linux 上常为 IPv6）。
+`pnpm dev` 会用 `node` 直接拉起 `apps/server` 的 tsx 与 `apps/web` 的 Vite（cwd 为对应包目录），并等 `127.0.0.1:3001/health` 就绪后再开前端，避免页面先出现 502。不要在根脚本里再套一层 `pnpm --filter`：Windows 上嵌套 pnpm 会把后端进程挂死（`cd apps/server && pnpm dev` 本身是正常的）。
 
-若 `[server]` 报错或页面 502：看终端完整日志；`libsql` 原生绑定失败时执行 `pnpm rebuild libsql`；健康检查请用 `http://127.0.0.1:3001/health`（不要只测可能走 IPv6 的 `localhost:3001`）。
+API 固定绑 IPv4 回环；前端仍监听默认的 `localhost`（Linux 上常为 IPv6）。若页面 502：看终端 `[dev]` / server 日志。健康检查请用 `http://127.0.0.1:3001/health`（不要只测可能走 IPv6 的 `localhost:3001`）。
 
 打开 http://localhost:5173，输入任务（例如“帮我整理一份 TypeScript 学习路线”）即可看到完整的
 规划 → 执行 → 反思 → 收尾过程。想看得更慢一些，可设置 `MOCK_DELAY_MS=800`。
@@ -187,7 +187,8 @@ e2e/                      Playwright 端到端测试
 
 | 命令 | 说明 |
 | --- | --- |
-| `pnpm dev` | 同时启动 server（tsx watch）与 web（Vite） |
+| `pnpm dev` | 根目录同时启动 server（tsx watch）与 web（Vite），不嵌套 pnpm |
+| `pnpm --filter @loop-agent/server dev` | 只启 API（`cd apps/server && pnpm dev` 效果相同） |
 | `pnpm build` | 构建 shared → server（tsup）→ web（Vite） |
 | `pnpm test` | 全部 Vitest 单元/集成测试（mock 模型，含 SQLite 存储、HITL、重连） |
 | `pnpm typecheck` | 全部包 `tsc --noEmit` |
@@ -222,6 +223,8 @@ LLM_PROVIDER=openai LLM_API_KEY=sk-... docker compose up -d   # 使用真实模�
   发起任务并完成 → 运行中刷新页面自动恢复 → 工具审批 → `plan_first` 计划确认。
 
 ## 常见问题
+
+**根目录 `pnpm dev` 只有前端、后端一直卡住？** — 旧脚本用 concurrently 再跑 `pnpm --filter @loop-agent/server dev`，Windows 上嵌套 pnpm 会让 tsx 永远进不了 listen。单独 `cd apps/server && pnpm dev` 能起 `3001` 就是这个原因。根目录现在改为 `node scripts/dev.mjs`，用当前 Node 直接执行 tsx / Vite。
 
 **启动报 `Invalid configuration`** — 某个环境变量不合法（例如 `LLM_PROVIDER` 拼写错误），错误信息会列出具体字段。
 
