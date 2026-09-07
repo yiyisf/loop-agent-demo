@@ -1,37 +1,59 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
+import { loadDotEnv } from './lib/load-env.js';
 import { createLogger } from './lib/logger.js';
+
+loadDotEnv();
 
 const config = loadConfig();
 const logger = createLogger(config.LOG_LEVEL);
-const { app, close } = await createApp({ config, logger });
 
-const server = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
-  logger.info(
-    {
-      port: info.port,
-      provider: config.LLM_PROVIDER,
-      model: config.LLM_MODEL,
-      database: config.DATABASE_URL,
-    },
-    'loop-agent server listening',
-  );
-});
-
-let shuttingDown = false;
-const shutdown = async (signal: string) => {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  logger.info({ signal }, 'shutting down');
-  server.close();
-  const timer = setTimeout(() => process.exit(1), 10_000);
-  timer.unref();
-  try {
-    await close();
-  } finally {
-    process.exit(0);
-  }
+const publicUrl = (address: string, port: number) => {
+  const host = address === '0.0.0.0' || address === '::' ? '127.0.0.1' : address;
+  const bracket = host.includes(':') ? `[${host}]` : host;
+  return `http://${bracket}:${port}`;
 };
-process.on('SIGINT', () => void shutdown('SIGINT'));
-process.on('SIGTERM', () => void shutdown('SIGTERM'));
+
+try {
+  const { app, close } = await createApp({ config, logger });
+
+  const server = serve({ fetch: app.fetch, port: config.PORT, hostname: config.HOST }, (info) => {
+    logger.info(
+      {
+        host: info.address,
+        port: info.port,
+        url: publicUrl(info.address, info.port),
+        provider: config.LLM_PROVIDER,
+        model: config.LLM_MODEL,
+        database: config.DATABASE_URL,
+      },
+      'loop-agent server listening',
+    );
+  });
+
+  server.on('error', (err) => {
+    logger.fatal({ err }, 'HTTP server failed');
+    process.exit(1);
+  });
+
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ signal }, 'shutting down');
+    server.close();
+    const timer = setTimeout(() => process.exit(1), 10_000);
+    timer.unref();
+    try {
+      await close();
+    } finally {
+      process.exit(0);
+    }
+  };
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+} catch (err) {
+  logger.fatal({ err }, 'failed to start server');
+  process.exit(1);
+}
