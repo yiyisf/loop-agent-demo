@@ -17,12 +17,12 @@ export async function createStores(config: AppConfig, logger?: Logger): Promise<
   try {
     const { createSqliteStores } = await import('./sqlite.js');
     const stores = await createSqliteStores({ url: config.DATABASE_URL });
-    logger?.info({ database: config.DATABASE_URL }, 'using sqlite store (node:sqlite)');
+    logger?.info({ file: config.DATABASE_URL }, 'sqlite file store (persists across restarts)');
     return stores;
   } catch (err) {
     logger?.warn(
       { err, database: config.DATABASE_URL },
-      'sqlite unavailable; falling back to in-memory store (sessions are lost on restart)',
+      'could not open the sqlite file; using memory store (THIS process only — restart will look empty)',
     );
     return createMemoryStores();
   }

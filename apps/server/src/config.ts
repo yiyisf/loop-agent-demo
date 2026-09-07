@@ -91,7 +91,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Invalid configuration: ${issues}`);
   }
-  return parsed.data;
+  const dataDir = path.resolve(parsed.data.DATA_DIR);
+  const sqlitePath = resolveSqlitePath(parsed.data.DATABASE_URL);
+  return {
+    ...parsed.data,
+    DATA_DIR: dataDir,
+    DATABASE_URL: sqlitePath === null ? 'memory' : sqlitePath,
+  };
 }
 
 /** Models offered to the UI: LLM_MODELS (comma separated) or the default model. */

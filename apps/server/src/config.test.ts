@@ -32,4 +32,11 @@ describe('loadConfig', () => {
     expect(config.PORT).toBe(3001);
     expect(config.DATABASE_URL).toBe('memory');
   });
+
+  it('stores an absolute sqlite path so restarts keep using the same file', () => {
+    const config = loadConfig({ DATABASE_URL: 'file:./data/loop-agent.db', DATA_DIR: './data' });
+    expect(path.isAbsolute(config.DATABASE_URL)).toBe(true);
+    expect(config.DATABASE_URL.endsWith(`${path.sep}data${path.sep}loop-agent.db`)).toBe(true);
+    expect(path.isAbsolute(config.DATA_DIR)).toBe(true);
+  });
 });
