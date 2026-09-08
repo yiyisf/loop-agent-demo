@@ -402,7 +402,7 @@ interface EventBus {
 
 ### 7.1 Planner
 
-- 调用：`generateObject({ model, schema: PlanDraftSchema, system: PLANNER_PROMPT, prompt })`。
+- 调用：普通 chat 生成 JSON 文本，服务端用 `PlanDraftSchema` 校验（不向网关发送 `json_schema` / structured output）。
 - 输入：用户任务、可用工具清单（名称 + 描述 + 风险等级）、预算约束（最大步数）、Thread 历史摘要（多轮时）。
 - 输出：`PlanDraft`（objective、steps[{id,title,goal,dependsOn,tools,acceptance}]、rationale）。
 - 服务端校验：DAG 无环、`dependsOn` 引用存在、`tools` 均在注册表内、步骤数 ≤ 上限；校验失败把错误反馈给模型重试一次（`repair` 策略），仍失败则 Run 失败。
@@ -437,7 +437,7 @@ const result = agent.stream({ prompt: step.goal, abortSignal });
 ### 7.3 Reflector
 
 - 触发时机：每个步骤结束后（成功或最终失败）。为控制成本，成功步骤默认使用**轻量规则**（验收标准由 Executor 自评；仅当 `summary` 含不确定信号或 Plan 中标记 `reflect: true` 时才调用 LLM）；失败步骤必然调用 LLM。
-- 调用：`generateObject({ schema: ReflectionDecisionSchema })`。
+- 调用：普通 chat 生成 JSON 文本，服务端用 `ReflectionDecisionSchema` 校验。
 
 ```ts
 export const ReflectionDecisionSchema = z.discriminatedUnion('action', [

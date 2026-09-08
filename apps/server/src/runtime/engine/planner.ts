@@ -5,9 +5,9 @@ import {
   type StepDraft,
   validateStepGraph,
 } from '@loop-agent/shared';
-import { generateObject } from 'ai';
 import { nowIso } from '../../lib/ids.js';
 import { plannerSystemPrompt, plannerUserPrompt } from '../prompts.js';
+import { generateStructured, PLAN_DRAFT_CONTRACT } from '../structured.js';
 import { PlanningError, type RunContext, throwIfAborted, toUsage } from './context.js';
 import { telemetryFor } from './telemetry.js';
 
@@ -36,11 +36,13 @@ export async function createPlan(ctx: RunContext): Promise<Plan> {
   let errors: string[] = [];
   for (let attempt = 0; attempt < 2; attempt++) {
     throwIfAborted(ctx.signal);
-    const result = await generateObject({
+    const result = await generateStructured({
       model,
       schema: PlanDraftSchema,
       system: plannerSystemPrompt(promptInput),
       prompt: plannerUserPrompt({ ...promptInput, previousErrors: errors }),
+      contract: PLAN_DRAFT_CONTRACT,
+      schemaName: 'PlanDraft',
       abortSignal: ctx.signal,
       telemetry: telemetryFor(ctx.config, 'planner'),
     });
