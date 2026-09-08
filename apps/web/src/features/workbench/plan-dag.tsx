@@ -21,7 +21,7 @@ const NODE_W = 200;
 const NODE_H = 64;
 const GAP_X = 28;
 const GAP_Y = 48;
-const FIT = { padding: 0.08, minZoom: 0.85, maxZoom: 1.15, duration: 220 } as const;
+const FIT = { padding: 0.06, minZoom: 1, maxZoom: 1.25, duration: 220 } as const;
 
 type StepNodeData = { step: Step; index: number; selected: boolean };
 type StepNode = Node<StepNodeData, 'step'>;
@@ -160,7 +160,7 @@ export function PlanDag({
         onNodeClick={(_, node) => onSelect(node.id)}
         fitView
         fitViewOptions={FIT}
-        minZoom={0.85}
+        minZoom={0.75}
         maxZoom={1.6}
         nodesDraggable={false}
         nodesConnectable={false}
