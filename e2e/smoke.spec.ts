@@ -68,7 +68,7 @@ test.describe('loop-agent smoke', () => {
     await composer.fill('整理一份周报模板');
     await composer.press('Enter');
 
-    await expect(page.getByText('确认计划')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('确认计划', { exact: true })).toBeVisible({ timeout: 30_000 });
     const titles = page.getByRole('textbox', { name: '步骤标题' });
     await expect(titles).toHaveCount(3);
     await page.getByRole('button', { name: '删除步骤' }).last().click();
