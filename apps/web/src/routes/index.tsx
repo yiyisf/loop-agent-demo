@@ -60,7 +60,7 @@ function IndexPage() {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">今天想完成什么任务？</h1>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            描述一个多步骤任务，Agent 会先制定计划，再逐步执行并在过程中动态调整。
+            可以先普通对话并调用工具；需要时再规划多步骤工作流，或让 Agent 根据内容自动决定。
           </p>
         </div>
 

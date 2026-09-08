@@ -16,7 +16,7 @@
 | 动态规划 | Planner 生成带依赖关系的步骤 DAG；Reflector 在步骤成功/失败后给出补丁式修订（已完成步骤不可变） |
 | 并行执行 | 依赖就绪的步骤按 `BUDGET_MAX_PARALLEL` 并发执行 |
 | 内置工具 | `web_search`、`http_fetch`、`calculator`、`workspace_read/write/list`、`read_artifact`、`ask_user`、`finish_step` |
-| 人在回路 | 高风险工具审批（可开启自动批准）、Agent 向用户提问、`plan_first` 模式下确认/编辑计划 |
+| 人在回路 | 高风险工具审批（可开启自动批准）、Agent 向用户提问；模式：对话 / 自动路由 / 先确认计划 |
 | 预算控制 | 最大重规划次数 / 步骤数 / 总耗时 / 总 token；超限自动进入收尾 |
 | 实时可视化 | 计划卡片、步骤 DAG（React Flow）、工具调用详情、工作台（计划 / 步骤 / 用量与成本 / 事件） |
 | 持久化与恢复 | SQLite 保存会话、消息、运行、计划修订、事件、审批、产物元数据；服务重启后未完成运行标记为失败并保留进度 |
@@ -194,6 +194,8 @@ e2e/                      Playwright 端到端测试
 | `pnpm typecheck` | 全部包 `tsc --noEmit` |
 | `pnpm lint` / `pnpm format` | Biome 检查 / 格式化 |
 | `pnpm e2e` | Playwright 端到端测试（首次需 `pnpm exec playwright install chromium`） |
+
+输入框可选 **对话**（普通沟通 + 工具）、**自动**（按内容决定是否规划工作流）、**先规划**（先出计划再执行）。右侧工作台可拖动左缘调宽。
 
 ## 生产部署
 

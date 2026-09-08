@@ -5,7 +5,14 @@ import type { LanguageModel } from 'ai';
 import type { AppConfig } from '../config.js';
 import { createMockLanguageModel, defaultMockScript, type MockScript } from './mock-model.js';
 
-export type ModelRole = 'planner' | 'executor' | 'reflector' | 'finalizer' | 'titler' | 'default';
+export type ModelRole =
+  | 'planner'
+  | 'executor'
+  | 'reflector'
+  | 'finalizer'
+  | 'titler'
+  | 'chat'
+  | 'default';
 
 export interface ModelProvider {
   readonly kind: AppConfig['LLM_PROVIDER'];

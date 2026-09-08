@@ -26,7 +26,7 @@ export function Composer({
   onStop,
   busy,
   disabled,
-  placeholder = '描述一个任务，Enter 发送，Shift+Enter 换行',
+  placeholder = '输入消息或任务，Enter 发送，Shift+Enter 换行',
   autoFocus,
   className,
   size = 'default',
@@ -92,23 +92,36 @@ export function Composer({
         )}
       />
       <div className="flex items-center gap-3 px-3 pb-2.5">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <label
-              htmlFor={`${id}-plan-first`}
-              className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
-            >
-              <Switch
-                id={`${id}-plan-first`}
-                checked={mode === 'plan_first'}
-                onCheckedChange={(v) => setMode(v ? 'plan_first' : 'auto')}
-                aria-label="先确认计划"
-              />
-              先确认计划
-            </label>
-          </TooltipTrigger>
-          <TooltipContent>开启后，Agent 会先展示计划，待你确认后再执行</TooltipContent>
-        </Tooltip>
+        <fieldset className="flex rounded-md border bg-muted/40 p-0.5">
+          <legend className="sr-only">会话模式</legend>
+          {(
+            [
+              ['chat', '对话', '普通沟通，可调用工具，不强制生成工作流'],
+              ['auto', '自动', '根据内容决定先对话还是规划执行'],
+              ['plan_first', '先规划', '先展示计划，确认后再执行'],
+            ] as const
+          ).map(([value, label, tip]) => (
+            <Tooltip key={value}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={label}
+                  aria-pressed={mode === value}
+                  onClick={() => setMode(value)}
+                  className={cn(
+                    'rounded px-1.5 py-0.5 text-xs transition-colors',
+                    mode === value
+                      ? 'bg-background text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{tip}</TooltipContent>
+            </Tooltip>
+          ))}
+        </fieldset>
         <Tooltip>
           <TooltipTrigger asChild>
             <label

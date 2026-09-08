@@ -15,7 +15,7 @@ function UserMessage({ message }: { message: AgentUIMessage }) {
   const text = messageText(message);
   return (
     <div className="flex justify-end" data-testid="user-message">
-      <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm whitespace-pre-wrap text-primary-foreground">
+      <div className="max-w-[85%] min-w-0 rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm break-words whitespace-pre-wrap [overflow-wrap:anywhere] text-primary-foreground">
         {text}
       </div>
     </div>
@@ -58,9 +58,13 @@ export function MessageList({
   const rerun = onRerun && rerunText && !isStreaming ? () => onRerun(rerunText) : undefined;
 
   return (
-    <div className="relative min-h-0 flex-1">
-      <div ref={containerRef} onScroll={onScroll} className="h-full overflow-y-auto scrollbar-thin">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+    <div className="relative min-h-0 min-w-0 flex-1">
+      <div
+        ref={containerRef}
+        onScroll={onScroll}
+        className="h-full min-w-0 overflow-x-hidden overflow-y-auto scrollbar-thin"
+      >
+        <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-6 px-4 py-6">
           {messages.map((m) =>
             m.role === 'user' ? (
               <UserMessage key={m.id} message={m} />

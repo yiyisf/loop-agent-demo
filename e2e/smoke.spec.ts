@@ -50,9 +50,20 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByText('已拒绝')).toBeVisible();
   });
 
+  test('chat mode replies without a workflow plan', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: '对话' }).click();
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('你好');
+    await composer.press('Enter');
+
+    await expect(page.getByText('对话模式')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('理解任务并拆解要点')).toHaveCount(0);
+  });
+
   test('plan_first lets the user edit the plan before execution', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('switch', { name: '先确认计划' }).click();
+    await page.getByRole('button', { name: '先规划' }).click();
     const composer = page.getByRole('textbox', { name: '任务输入' });
     await composer.fill('整理一份周报模板');
     await composer.press('Enter');

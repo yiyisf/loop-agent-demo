@@ -17,10 +17,11 @@ import { StepStatusIcon, stepStatusRing } from '@/features/chat/parts/step-statu
 import { stepStatusLabel } from '@/lib/run-view';
 import { cn } from '@/lib/utils';
 
-const NODE_W = 168;
-const NODE_H = 52;
-const GAP_X = 20;
-const GAP_Y = 44;
+const NODE_W = 200;
+const NODE_H = 64;
+const GAP_X = 28;
+const GAP_Y = 48;
+const FIT = { padding: 0.08, minZoom: 0.85, maxZoom: 1.15, duration: 220 } as const;
 
 type StepNodeData = { step: Step; index: number; selected: boolean };
 type StepNode = Node<StepNodeData, 'step'>;
@@ -70,7 +71,7 @@ function StepNodeView({ data }: NodeProps<StepNode>) {
   return (
     <div
       className={cn(
-        'flex h-[52px] w-[168px] items-center gap-2 rounded-lg border bg-card px-2.5 text-left shadow-xs transition-colors',
+        'flex h-[64px] w-[200px] items-center gap-2 rounded-lg border bg-card px-3 text-left shadow-xs transition-colors',
         stepStatusRing(step.status),
         selected && 'ring-2 ring-primary/60',
       )}
@@ -79,11 +80,11 @@ function StepNodeView({ data }: NodeProps<StepNode>) {
       <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-border" />
       <StepStatusIcon status={step.status} className="size-3.5" />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-medium leading-4">
+        <div className="truncate text-sm font-medium leading-5">
           <span className="mr-1 text-muted-foreground">{index + 1}.</span>
           {step.title}
         </div>
-        <div className="truncate text-[10px] leading-4 text-muted-foreground">
+        <div className="truncate text-xs leading-4 text-muted-foreground">
           {stepStatusLabel[step.status]}
           {step.tools.length > 0 && ` · ${step.tools.length} 工具`}
         </div>
@@ -103,7 +104,7 @@ function FitOnChange({ signature }: { signature: string }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: refit whenever the graph shape changes
   useEffect(() => {
     if (!initialized) return;
-    const id = requestAnimationFrame(() => void fitView({ padding: 0.12, duration: 200 }));
+    const id = requestAnimationFrame(() => void fitView(FIT));
     return () => cancelAnimationFrame(id);
   }, [initialized, signature, fitView]);
   return null;
@@ -158,9 +159,9 @@ export function PlanDag({
         nodeTypes={nodeTypes}
         onNodeClick={(_, node) => onSelect(node.id)}
         fitView
-        fitViewOptions={{ padding: 0.15 }}
-        minZoom={0.3}
-        maxZoom={1.5}
+        fitViewOptions={FIT}
+        minZoom={0.85}
+        maxZoom={1.6}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}

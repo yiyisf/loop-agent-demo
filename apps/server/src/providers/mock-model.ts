@@ -292,6 +292,33 @@ export const defaultMockScript: MockScript = (ctx) => {
         chunkDelayMs: 15,
       };
     }
+    case 'chat': {
+      const task = taskFromPrompt(ctx.lastUserText) || ctx.lastUserText;
+      if (
+        ctx.callIndex === 0 &&
+        ctx.toolNames.includes('calculator') &&
+        /计算|[\d()+*/]/.test(task)
+      ) {
+        return {
+          toolCalls: [{ toolName: 'calculator', input: { expression: '(12 + 30) * 2' } }],
+          chunkDelayMs: 15,
+        };
+      }
+      if (
+        ctx.callIndex === 0 &&
+        ctx.toolNames.includes('http_fetch') &&
+        /https?:\/\/|网页|抓取/.test(task)
+      ) {
+        return {
+          toolCalls: [{ toolName: 'http_fetch', input: { url: 'https://example.com/' } }],
+          chunkDelayMs: 15,
+        };
+      }
+      return {
+        text: `这是 **对话模式** 的回复，没有生成工作流计划。\n\n针对「${task.slice(0, 80)}」：可以直接继续提问，或切换到「自动 / 先规划」让我拆成步骤执行。`,
+        chunkDelayMs: 15,
+      };
+    }
     case 'reflector':
       return { json: { action: 'continue', note: 'mock: 继续执行' } };
     case 'titler': {

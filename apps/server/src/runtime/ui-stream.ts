@@ -48,6 +48,7 @@ export function eventToChunks(
           endedAt: run.endedAt,
           error: run.error,
           model: run.model,
+          mode: run.mode,
         },
       });
       break;
