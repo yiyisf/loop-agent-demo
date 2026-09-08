@@ -61,6 +61,31 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByText('理解任务并拆解要点')).toHaveCount(0);
   });
 
+  test('expanded plan wraps long step details instead of one truncated line', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: '先规划' }).click();
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('整理一份周报模板');
+    await composer.press('Enter');
+
+    await expect(page.getByText('确认计划', { exact: true })).toBeVisible({ timeout: 30_000 });
+    const longGoal =
+      '调研竞品A、竞品B与竞品C的定价、功能清单、目标用户与近三个月更新节奏，并对照我们产品给出差距、优先级与下一季度落地建议。';
+    await page.locator('textarea[name$="-goal"]').first().fill(longGoal);
+    await page.getByRole('button', { name: '按修改后的计划执行' }).click();
+
+    const detail = page.getByTestId('plan-step-goal').first();
+    await expect(detail).toHaveText(longGoal, { timeout: 30_000 });
+    const box = await detail.boundingBox();
+    expect(box, 'step detail should be visible').toBeTruthy();
+    expect(box!.height, 'long step goal should wrap onto more than one line').toBeGreaterThan(28);
+
+    const noPageOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    );
+    expect(noPageOverflow).toBe(true);
+  });
+
   test('plan_first lets the user edit the plan before execution', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: '先规划' }).click();
