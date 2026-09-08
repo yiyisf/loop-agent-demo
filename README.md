@@ -36,7 +36,7 @@
 ┌──────────────────────────────────▼─────────────────────────────────────────┐
 │ apps/server (Hono, Node 22)                                                │
 │  routes ─▶ RunManager ─▶ LoopEngine                                        │
-│                          ├─ Planner   (generateObject → Plan DAG)          │
+│                          ├─ Planner   (chat JSON → Plan DAG)               │
 │                          ├─ Executor  (generateText + tools, 每步一个循环)   │
 │                          ├─ Reflector (成功/失败后决定 继续 / 修订计划 / 收尾) │
 │                          └─ Finalizer (汇总最终回答)                        │
@@ -229,6 +229,8 @@ LLM_PROVIDER=openai LLM_API_KEY=sk-... docker compose up -d   # 使用真实模�
 **为什么不用 libsql / 为什么 3001 会因为数据库挂掉？** — 设计里选 `@libsql/client` 是为了单机 SQLite + 以后能迁 Turso。它是额外的原生绑定，Windows 上加载失败时旧实现会在 `listen` 之前退出，Vite 就 502。现在改为 Node 22 自带的 `node:sqlite`（随运行时分发，不再 `pnpm rebuild`）；文件打不开时回退内存存储，**HTTP 服务照样启动**。
 
 **`.env` 写了 SQLite，重启数据怎么还没了？** — 默认 `DATABASE_URL=file:./data/loop-agent.db` **会落盘**。注释里 “lost on restart / 重启丢失” 只适用于 `DATABASE_URL=memory`。打开 `http://127.0.0.1:3001/health`：`persist: true` 才是文件库；`store: "memory"` 表示你显式设了 memory，或文件没打开成功（看 `[server]` 的 warn）。
+
+**真实模型报「响应 schema 格式不正确」或 `response did not match schema`** — Planner / Reflector 不再走各协议的原生 structured output（`response_format.json_schema`、Anthropic json tool、OpenAI Responses API）。改为普通 chat 文本出 JSON，服务端用 Zod 校验并自动修一次。`LLM_PROVIDER=openai` 固定走 `/v1/chat/completions`。lite / 内外网关请设 `LLM_BASE_URL` 指向 chat completions，密钥用 `LLM_API_KEY`。
 
 **启动报 `Invalid configuration`** — 某个环境变量不合法（例如 `LLM_PROVIDER` 拼写错误），错误信息会列出具体字段。
 

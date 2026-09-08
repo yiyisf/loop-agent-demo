@@ -45,7 +45,9 @@ function createFactory(
   switch (config.LLM_PROVIDER) {
     case 'openai': {
       const openai = createOpenAI({ apiKey: requireKey(config), baseURL: config.LLM_BASE_URL });
-      return (id) => openai(id);
+      // Chat Completions, not Responses API — lite / internal gateways only
+      // implement /v1/chat/completions.
+      return (id) => openai.chat(id);
     }
     case 'openai-compatible': {
       const compat = createOpenAICompatible({

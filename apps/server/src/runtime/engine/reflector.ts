@@ -5,8 +5,8 @@ import {
   type Step,
   type StepResult,
 } from '@loop-agent/shared';
-import { generateObject } from 'ai';
 import { reflectorSystemPrompt, reflectorUserPrompt } from '../prompts.js';
+import { generateStructured, REFLECTION_DECISION_CONTRACT } from '../structured.js';
 import { type RunContext, throwIfAborted, toUsage } from './context.js';
 import { errorMessage } from './executor.js';
 import { telemetryFor } from './telemetry.js';
@@ -62,11 +62,13 @@ export async function reflect(
 
   const promptInput = { ...input, toolsMarkdown: ctx.tools.describeForPlanner() };
   try {
-    const result = await generateObject({
+    const result = await generateStructured({
       model: ctx.models.model('reflector', ctx.run.model),
       schema: ReflectionDecisionSchema,
       system: reflectorSystemPrompt(promptInput),
       prompt: reflectorUserPrompt(promptInput),
+      contract: REFLECTION_DECISION_CONTRACT,
+      schemaName: 'ReflectionDecision',
       abortSignal: ctx.signal,
       telemetry: telemetryFor(ctx.config, 'reflector'),
     });
