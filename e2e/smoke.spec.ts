@@ -195,7 +195,9 @@ test.describe('loop-agent smoke', () => {
 
     await expect(page.getByTestId('artifact-card')).toBeVisible({ timeout: 45_000 });
     await expect(page.getByTestId('artifact-card').getByText('README.md')).toBeVisible();
-    await expect(page.getByTestId('artifact-card').getByRole('link', { name: '下载' })).toBeVisible();
+    await expect(
+      page.getByTestId('artifact-card').getByRole('link', { name: '下载' }),
+    ).toBeVisible();
   });
 
   test('retry after a denied approval starts a new run', async ({ page }) => {
