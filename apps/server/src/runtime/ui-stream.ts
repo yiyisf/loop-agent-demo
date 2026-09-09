@@ -162,6 +162,13 @@ export function eventToChunks(
         data: event.artifact,
       });
       break;
+    case 'ui.presented':
+      chunks.push({
+        type: 'data-ui',
+        id: dataPartIds.ui(event.block.id),
+        data: event.block,
+      });
+      break;
     case 'reflection':
       break;
     default:
@@ -229,7 +236,7 @@ export function createRunUIStream(options: RunUIStreamOptions): ReadableStream<L
 
 /** Builds the persisted assistant message for a finished run. */
 export function buildAssistantMessage(snapshot: RunSnapshot): LoopAgentUIMessage {
-  const { run, plan, toolCalls, approvals, questions, citations, artifacts } = snapshot;
+  const { run, plan, toolCalls, approvals, questions, citations, artifacts, uiBlocks } = snapshot;
   const parts: LoopAgentUIMessage['parts'] = [];
   parts.push({
     type: 'data-run',
@@ -261,6 +268,7 @@ export function buildAssistantMessage(snapshot: RunSnapshot): LoopAgentUIMessage
     parts.push({ type: 'data-citation', id: dataPartIds.citation(c.id), data: c });
   for (const a of artifacts)
     parts.push({ type: 'data-artifact', id: dataPartIds.artifact(a.id), data: a });
+  for (const b of uiBlocks) parts.push({ type: 'data-ui', id: dataPartIds.ui(b.id), data: b });
   if (run.finalAnswer) parts.push({ type: 'text', text: run.finalAnswer, state: 'done' });
   parts.push({ type: 'data-usage', id: dataPartIds.usage, data: run.usage });
 

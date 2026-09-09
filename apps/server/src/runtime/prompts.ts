@@ -145,6 +145,7 @@ export function chatSystemPrompt(
     : '';
   return `You are a helpful assistant in a conversation. Answer the user directly.
 Use tools when they genuinely help (calculation, fetch, search, workspace files). Do not invent a multi-step project plan unless the user asks for one.
+When a short structured card would help the user act, call present_ui with exactly one whitelist widget: table, choice, metric, or form. Never emit HTML or scripts.
 If the user later wants a structured workflow, say so briefly and keep the current reply useful.
 Respond in the language of the user.
 

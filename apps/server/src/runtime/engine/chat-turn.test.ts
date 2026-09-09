@@ -48,4 +48,17 @@ describe('chat turn', () => {
     const user = messages.find((m) => m.role === 'user');
     expect(user?.parts.some((p) => p.type === 'data-attachment')).toBe(true);
   });
+
+  it('presents a choice widget without creating a plan', async () => {
+    const h = await createTestHarness();
+    cleanup = h.cleanup;
+
+    const { runId, res } = await h.startRun('给我三个部署环境选项让我选一个');
+    await res.text();
+    const events = await h.collectEvents(runId);
+    expect(events.some((e) => e.type === 'ui.presented')).toBe(true);
+    const snapshot = h.ctx.runManager.get(runId)!;
+    expect(snapshot.plan).toBeNull();
+    expect(snapshot.uiBlocks[0]?.widget.kind).toBe('choice');
+  });
 });

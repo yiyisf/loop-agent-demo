@@ -100,6 +100,7 @@ describe('deriveRunView', () => {
     expect(view.finalText).toBe('hello');
     expect(view.citations).toEqual([]);
     expect(view.artifacts).toEqual([]);
+    expect(view.uiBlocks).toEqual([]);
   });
 
   it('collects citations and artifacts', () => {

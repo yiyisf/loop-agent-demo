@@ -10,6 +10,7 @@ import {
   type Step,
   TERMINAL_RUN_STATUSES,
   type ToolCallRecord,
+  type UiBlock,
   type UserQuestion,
 } from '@loop-agent/shared';
 
@@ -28,6 +29,7 @@ export class RunState {
   toolCalls = new Map<string, ToolCallRecord>();
   citations: Citation[] = [];
   artifacts: Artifact[] = [];
+  uiBlocks: UiBlock[] = [];
   finalText = '';
   lastSeq = 0;
 
@@ -169,6 +171,12 @@ export class RunState {
         }
         break;
       }
+      case 'ui.presented': {
+        if (!this.uiBlocks.some((b) => b.id === event.block.id)) {
+          this.uiBlocks.push(event.block);
+        }
+        break;
+      }
       case 'final.text_delta': {
         this.finalText += event.delta;
         break;
@@ -200,6 +208,7 @@ export class RunState {
       toolCalls: [...this.toolCalls.values()].map((t) => structuredClone(t)),
       citations: this.citations.map((c) => structuredClone(c)),
       artifacts: this.artifacts.map((a) => structuredClone(a)),
+      uiBlocks: this.uiBlocks.map((b) => structuredClone(b)),
       lastSeq: this.lastSeq,
     };
   }

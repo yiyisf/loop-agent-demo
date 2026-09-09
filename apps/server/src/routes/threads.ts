@@ -59,6 +59,10 @@ function assistantHistoryLine(m: LoopAgentUIMessage): string | undefined {
       const tool = part.data as { toolName?: string };
       if (tool.toolName) bits.push(`[tool] ${tool.toolName}`);
     }
+    if (part.type === 'data-ui') {
+      const block = part.data as { widget?: { kind?: string } };
+      if (block.widget?.kind) bits.push(`[ui] ${block.widget.kind}`);
+    }
   }
   const text = messageText(m);
   if (text) bits.push(text.slice(0, 800));

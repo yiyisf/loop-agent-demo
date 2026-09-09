@@ -9,6 +9,7 @@ import type {
   RunStatus,
   Step,
   ToolCallRecord,
+  UiBlock,
   Usage,
   UserQuestion,
 } from '@loop-agent/shared';
@@ -32,6 +33,7 @@ export interface RunView {
   questions: UserQuestion[];
   citations: Citation[];
   artifacts: Artifact[];
+  uiBlocks: UiBlock[];
   usage?: Usage;
   model?: string;
   mode?: RunMode;
@@ -47,6 +49,7 @@ export function deriveRunView(message: AgentUIMessage | undefined): RunView {
     questions: [],
     citations: [],
     artifacts: [],
+    uiBlocks: [],
     finalText: '',
     isTerminal: false,
   };
@@ -91,6 +94,9 @@ export function deriveRunView(message: AgentUIMessage | undefined): RunView {
         break;
       case 'data-artifact':
         view.artifacts.push(part.data as Artifact);
+        break;
+      case 'data-ui':
+        view.uiBlocks.push(part.data as UiBlock);
         break;
       case 'data-usage':
         view.usage = part.data as Usage;

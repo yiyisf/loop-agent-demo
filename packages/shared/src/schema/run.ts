@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BudgetSchema, IsoDateTime, UsageSchema } from './common.js';
 import { type Plan, StepDraftSchema } from './plan.js';
+import type { UiBlock } from './ui.js';
 
 export const RunStatusSchema = z.enum([
   'queued',
@@ -141,6 +142,7 @@ export interface RunSnapshot {
   toolCalls: ToolCallRecord[];
   citations: Citation[];
   artifacts: Artifact[];
+  uiBlocks: UiBlock[];
   lastSeq: number;
 }
 

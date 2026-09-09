@@ -53,11 +53,13 @@ export function MessageList({
   messages,
   isStreaming,
   onRerun,
+  onUiSubmit,
 }: {
   messages: AgentUIMessage[];
   isStreaming: boolean;
   /** Re-submits the given user input as a new run (retry / regenerate). */
   onRerun?: (text: string) => void;
+  onUiSubmit?: (text: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
@@ -102,6 +104,7 @@ export function MessageList({
                 isLatest={m.id === lastAssistantId}
                 isStreaming={isStreaming}
                 onRerun={m.id === lastAssistantId ? rerun : undefined}
+                onUiSubmit={m.id === lastAssistantId && !isStreaming ? onUiSubmit : undefined}
               />
             ),
           )}

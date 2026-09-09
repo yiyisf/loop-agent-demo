@@ -91,7 +91,12 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
       <output aria-live="polite" className="sr-only">
         {announcement}
       </output>
-      <MessageList messages={chat.messages} isStreaming={chat.isBusy} onRerun={chat.send} />
+      <MessageList
+        messages={chat.messages}
+        isStreaming={chat.isBusy}
+        onRerun={chat.send}
+        onUiSubmit={chat.send}
+      />
       <div className="shrink-0 px-4 pb-4">
         <div className="mx-auto w-full max-w-3xl">
           <NoticeStack />

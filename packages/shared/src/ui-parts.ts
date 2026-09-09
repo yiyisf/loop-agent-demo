@@ -9,6 +9,7 @@ import type {
   RunStatus,
   UserQuestion,
 } from './schema/run.js';
+import type { UiBlock } from './schema/ui.js';
 
 /**
  * Custom `data-*` parts streamed to the UI (AI SDK UI Message Stream).
@@ -70,6 +71,8 @@ export type LoopAgentDataParts = {
   citation: Citation;
   /** Workspace artifact produced during the run. */
   artifact: Artifact;
+  /** Whitelisted generative UI block (table / choice / metric / form). */
+  ui: UiBlock;
 };
 
 export type LoopAgentDataPartType = `data-${keyof LoopAgentDataParts & string}`;
@@ -92,6 +95,7 @@ export const dataPartIds = {
   attachment: (name: string) => `att:${name}`,
   citation: (id: string) => `cite:${id}`,
   artifact: (id: string) => `art:${id}`,
+  ui: (id: string) => `ui:${id}`,
 } as const;
 
 /** Response headers used by the streaming endpoints. */

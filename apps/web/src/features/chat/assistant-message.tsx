@@ -15,6 +15,7 @@ import { PlanEditor } from './parts/plan-editor';
 import { QuestionCard } from './parts/question-card';
 import { StatusPill } from './parts/status-pill';
 import { ToolCallCard } from './parts/tool-call-card';
+import { UiWidgetCard } from './parts/ui-widget-card';
 
 export interface AssistantMessageProps {
   message: AgentUIMessage;
@@ -22,6 +23,8 @@ export interface AssistantMessageProps {
   isStreaming: boolean;
   /** Present only on the latest, settled message: re-runs its user input. */
   onRerun?: () => void;
+  /** Latest settled message: clicking a UI widget starts the next turn. */
+  onUiSubmit?: (text: string) => void;
 }
 
 export function AssistantMessage({
@@ -29,6 +32,7 @@ export function AssistantMessage({
   isLatest,
   isStreaming,
   onRerun,
+  onUiSubmit,
 }: AssistantMessageProps) {
   const view = useMemo(() => deriveRunView(message), [message]);
   const live = isLatest && isStreaming && !view.isTerminal;
@@ -125,6 +129,19 @@ export function AssistantMessage({
         {pendingQuestions.map((q) => (
           <QuestionCard key={q.id} question={q} interactive={interactive} />
         ))}
+
+        {view.uiBlocks.length > 0 && (
+          <div className="grid gap-2">
+            {view.uiBlocks.map((block) => (
+              <UiWidgetCard
+                key={block.id}
+                block={block}
+                interactive={isLatest && !isStreaming && !!onUiSubmit}
+                onPick={onUiSubmit}
+              />
+            ))}
+          </div>
+        )}
 
         {view.toolCalls.length > 0 && (
           <Collapsible open={toolsOpen || live} onOpenChange={setToolsOpen}>

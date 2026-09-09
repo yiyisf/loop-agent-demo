@@ -10,6 +10,7 @@ import { emitToolCitations } from '../citations.js';
 import { executorSystemPrompt } from '../prompts.js';
 import { FINISH_STEP_TOOL } from '../tools/builtin/index.js';
 import type { ToolRuntime } from '../tools/types.js';
+import { emitToolUi } from '../ui-blocks.js';
 import { withApproval } from './approval.js';
 import { RunAbortedError, type RunContext, throwIfAborted, toUsage } from './context.js';
 import { askUser } from './hitl.js';
@@ -134,6 +135,7 @@ export async function executeStep(
         });
         ctx.emit({ type: 'usage', usage: { ...emptyUsage(), toolCalls: 1 } });
         emitToolCitations(ctx, part.toolName, part.output);
+        emitToolUi(ctx, part.toolName, part.output);
         break;
       }
       case 'tool-error': {

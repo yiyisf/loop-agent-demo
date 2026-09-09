@@ -39,6 +39,7 @@ export function runRoutes(ctx: AppContext) {
         toolCalls: [],
         citations: [],
         artifacts: [],
+        uiBlocks: [],
         lastSeq: 0,
       });
     }

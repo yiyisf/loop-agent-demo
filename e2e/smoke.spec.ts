@@ -155,6 +155,38 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByText(/example\.com|Example Domain/i).first()).toBeVisible();
   });
 
+  test('workbench previews a markdown artifact by type', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('编写一份 README 并保存到工作区');
+    await composer.press('Enter');
+    await expect(page.getByTestId('artifact-card')).toBeVisible({ timeout: 45_000 });
+    const artifactsTab = page.getByRole('tab', { name: /产物/ });
+    if (!(await artifactsTab.isVisible())) {
+      await page.getByRole('button', { name: '切换工作台' }).click();
+    }
+    await artifactsTab.click();
+    await expect(page.getByTestId('artifact-preview')).toBeVisible();
+    await expect(page.getByTestId('artifact-preview').getByText('Markdown')).toBeVisible();
+    await expect(page.getByTestId('artifact-preview').getByText(/Mock README/)).toBeVisible();
+  });
+
+  test('choice widget click starts the next turn', async ({ page }) => {
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('给我三个部署环境选项让我选一个');
+    await composer.press('Enter');
+    await expect(page.getByTestId('ui-choice')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('请直接在上方卡片里操作')).toBeVisible();
+    await expect(page.getByText('理解任务并拆解要点')).toHaveCount(0);
+    await page.getByRole('button', { name: '生产环境' }).click();
+    await expect(page.getByTestId('user-message').getByText('我选择：生产环境')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/已收到你的选择/).first()).toBeVisible({ timeout: 30_000 });
+  });
+
   test('workspace write appears as an artifact card in chat', async ({ page }) => {
     await page.goto('/');
     const composer = page.getByRole('textbox', { name: '任务输入' });
