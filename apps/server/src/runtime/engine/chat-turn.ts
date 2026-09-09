@@ -1,8 +1,11 @@
 import { emptyUsage } from '@loop-agent/shared';
 import { isStepCount, ToolLoopAgent } from 'ai';
+import { formatAttachmentsPrompt } from '../attachments.js';
+import { emitToolCitations } from '../citations.js';
 import { chatSystemPrompt } from '../prompts.js';
 import { FINISH_STEP_TOOL } from '../tools/builtin/index.js';
 import type { ToolRuntime } from '../tools/types.js';
+import { emitToolUi } from '../ui-blocks.js';
 import { withApproval } from './approval.js';
 import { RunAbortedError, type RunContext, throwIfAborted, toUsage } from './context.js';
 import { errorMessage } from './executor.js';
@@ -36,7 +39,11 @@ export async function runChatTurn(ctx: RunContext): Promise<void> {
 
   const agent = new ToolLoopAgent({
     model: ctx.models.model('chat', ctx.run.model),
-    instructions: chatSystemPrompt(ctx.tools.describeForPlanner(), ctx.history),
+    instructions: chatSystemPrompt(
+      ctx.tools.describeForPlanner(),
+      ctx.history,
+      formatAttachmentsPrompt(ctx.attachments),
+    ),
     tools,
     stopWhen: [isStepCount(maxToolCalls)],
     telemetry: telemetryFor(ctx.config, 'chat'),
@@ -55,6 +62,9 @@ export async function runChatTurn(ctx: RunContext): Promise<void> {
       case 'text-delta':
         answer += part.text;
         ctx.emit({ type: 'final.text_delta', delta: part.text });
+        break;
+      case 'reasoning-delta':
+        ctx.emit({ type: 'step.reasoning_delta', stepId: CHAT_STEP_ID, delta: part.text });
         break;
       case 'tool-call':
         toolStarts.set(part.toolCallId, Date.now());
@@ -77,6 +87,8 @@ export async function runChatTurn(ctx: RunContext): Promise<void> {
           durationMs: Date.now() - (toolStarts.get(part.toolCallId) ?? Date.now()),
         });
         ctx.emit({ type: 'usage', usage: { ...emptyUsage(), toolCalls: 1 } });
+        emitToolCitations(ctx, part.toolName, part.output);
+        emitToolUi(ctx, part.toolName, part.output);
         break;
       case 'tool-error':
         ctx.emit({

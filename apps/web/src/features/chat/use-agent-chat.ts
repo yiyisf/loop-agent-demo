@@ -1,5 +1,11 @@
 import { useChat } from '@ai-sdk/react';
-import { type LoopAgentDataParts, type RunStatus, TERMINAL_RUN_STATUSES } from '@loop-agent/shared';
+import {
+  type AttachmentDraft,
+  dataPartIds,
+  type LoopAgentDataParts,
+  type RunStatus,
+  TERMINAL_RUN_STATUSES,
+} from '@loop-agent/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from 'ai';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -7,6 +13,23 @@ import { queryKeys } from '@/lib/api';
 import { deriveRunView } from '@/lib/run-view';
 import type { AgentUIMessage } from '@/lib/types';
 import { useRunStore } from '@/stores/run-store';
+import type { ComposerSend } from './composer';
+
+function attachmentPreview(draft: AttachmentDraft): LoopAgentDataParts['attachment'] {
+  const raw = (draft.text ?? '').replace(/\s+/g, ' ').trim();
+  return {
+    name: draft.name,
+    mime: draft.mime,
+    size: draft.text ? new TextEncoder().encode(draft.text).length : 0,
+    excerpt: raw
+      ? raw.length > 280
+        ? `${raw.slice(0, 280)}…`
+        : raw
+      : draft.dataBase64
+        ? '（二进制附件）'
+        : '',
+  };
+}
 
 export interface UseAgentChatOptions {
   threadId: string;
@@ -20,13 +43,13 @@ export function useAgentChat({ threadId, initialMessages }: UseAgentChatOptions)
   const appendStepLog = useRunStore((s) => s.appendStepLog);
   const clearStepLogs = useRunStore((s) => s.clearStepLogs);
   const pushNotice = useRunStore((s) => s.pushNotice);
-  const mode = useRunStore((s) => s.mode);
   const model = useRunStore((s) => s.model);
   const autoApprove = useRunStore((s) => s.autoApprove);
   // useChat only reads the transport when the Chat instance is created, so the
   // composer settings are read through refs to stay current.
-  const settings = useRef({ mode, model, autoApprove });
-  settings.current = { mode, model, autoApprove };
+  const settings = useRef({ model, autoApprove });
+  settings.current = { model, autoApprove };
+  const pendingAttachments = useRef<AttachmentDraft[]>([]);
 
   const currentRunId = useRef<string | undefined>(undefined);
   const runStatus = useRef<RunStatus | undefined>(undefined);
@@ -42,9 +65,9 @@ export function useAgentChat({ threadId, initialMessages }: UseAgentChatOptions)
           body: {
             // Server persists history itself; only the latest user turn is needed.
             messages: messages.slice(-1),
-            mode: settings.current.mode,
             model: settings.current.model,
             toolPolicy: { autoApprove: settings.current.autoApprove },
+            attachments: pendingAttachments.current,
             ...body,
           },
         }),
@@ -148,13 +171,27 @@ export function useAgentChat({ threadId, initialMessages }: UseAgentChatOptions)
   const isBusy = chat.status === 'submitted' || chat.status === 'streaming';
 
   const send = useCallback(
-    (text: string) => {
-      const trimmed = text.trim();
+    (input: string | ComposerSend) => {
+      const payload = typeof input === 'string' ? { text: input, attachments: [] } : input;
+      const attachments = payload.attachments ?? [];
+      const trimmed =
+        payload.text.trim() ||
+        (attachments.length ? `请阅读附件：${attachments.map((f) => f.name).join('、')}` : '');
       if (!trimmed || isBusy) return;
       currentRunId.current = undefined;
       runStatus.current = undefined;
       reconnectAttempt.current = 0;
-      void chat.sendMessage({ text: trimmed });
+      pendingAttachments.current = attachments;
+      void chat.sendMessage({
+        parts: [
+          { type: 'text', text: trimmed },
+          ...attachments.map((f) => ({
+            type: 'data-attachment' as const,
+            id: dataPartIds.attachment(f.name),
+            data: attachmentPreview(f),
+          })),
+        ],
+      });
     },
     [chat, isBusy],
   );

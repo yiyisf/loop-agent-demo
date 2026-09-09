@@ -116,6 +116,9 @@ describe('HITL: tool approval', () => {
     const events = await h.collectEvents(runId);
     expect(events.some((e) => e.type === 'approval.requested')).toBe(false);
     expect(events.some((e) => e.type === 'tool.result' && e.toolName === 'http_fetch')).toBe(true);
+    expect(events.some((e) => e.type === 'citation.added')).toBe(true);
+    const snapshot = h.ctx.runManager.get(runId)!;
+    expect(snapshot.citations.some((c) => c.url?.includes('example.com'))).toBe(true);
   }, 15_000);
 });
 
@@ -129,7 +132,7 @@ describe('HITL: ask_user', () => {
     };
     const h = await createTestHarness({ script });
     cleanup = h.cleanup;
-    const { runId, res } = await h.startRun('先问我偏好，再写一份总结');
+    const { runId, res } = await h.startRun('先问我偏好，再写一份调研总结');
 
     const asked = await waitForEvent(h, runId, 'user_question.asked');
     expect(asked.question).toContain('风格');

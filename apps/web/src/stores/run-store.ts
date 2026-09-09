@@ -1,4 +1,4 @@
-import type { RunMode } from '@loop-agent/shared';
+import type { AttachmentDraft } from '@loop-agent/shared';
 import { create } from 'zustand';
 
 export interface StepLog {
@@ -18,8 +18,7 @@ interface RunStoreState {
   stepLogs: Record<string, Record<string, StepLog>>;
   notices: Notice[];
   /** Message queued from the landing page to be sent once the thread page mounts. */
-  pendingMessage: { threadId: string; text: string } | null;
-  mode: RunMode;
+  pendingMessage: { threadId: string; text: string; attachments?: AttachmentDraft[] } | null;
   model: string | undefined;
   /** Skip approval prompts for medium/high-risk tools. */
   autoApprove: boolean;
@@ -28,7 +27,6 @@ interface RunStoreState {
   pushNotice: (level: Notice['level'], message: string) => void;
   dismissNotice: (id: number) => void;
   setPendingMessage: (p: RunStoreState['pendingMessage']) => void;
-  setMode: (mode: RunMode) => void;
   setModel: (model: string | undefined) => void;
   setAutoApprove: (v: boolean) => void;
 }
@@ -39,7 +37,6 @@ export const useRunStore = create<RunStoreState>()((set) => ({
   stepLogs: {},
   notices: [],
   pendingMessage: null,
-  mode: 'auto',
   model: undefined,
   autoApprove: false,
   appendStepLog: (runId, stepId, kind, delta) =>
@@ -65,7 +62,6 @@ export const useRunStore = create<RunStoreState>()((set) => ({
     })),
   dismissNotice: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id) })),
   setPendingMessage: (pendingMessage) => set({ pendingMessage }),
-  setMode: (mode) => set({ mode }),
   setModel: (model) => set({ model }),
   setAutoApprove: (autoApprove) => set({ autoApprove }),
 }));

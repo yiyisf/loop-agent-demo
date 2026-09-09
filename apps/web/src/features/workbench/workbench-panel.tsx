@@ -1,5 +1,5 @@
 import { estimateCost, formatUsd, type Usage } from '@loop-agent/shared';
-import { Activity, ListTree, PanelRightClose, ScrollText, Workflow } from 'lucide-react';
+import { Activity, FileText, ListTree, PanelRightClose, ScrollText, Workflow } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +9,7 @@ import { cn, formatDuration, formatTokens } from '@/lib/utils';
 import { useRunStore } from '@/stores/run-store';
 import { useUiStore } from '@/stores/ui-store';
 import { useWorkbenchStore } from '@/stores/workbench-store';
+import { ArtifactBrowser } from './artifact-browser';
 import { PlanDag } from './plan-dag';
 import { RunEvents } from './run-events';
 import { StepDetail } from './step-detail';
@@ -49,9 +50,9 @@ export function WorkbenchPanel() {
       ) : !view.plan ? (
         <div className="min-h-0 flex-1 overflow-y-auto p-3 scrollbar-thin">
           <p className="mb-3 text-xs text-muted-foreground">
-            {view.mode === 'chat' || view.status === 'executing'
-              ? '当前是普通对话，未生成工作流。工具调用会出现在下方。'
-              : '运行开始后，这里会显示步骤详情、工具调用与用量。'}
+            {view.plan
+              ? '运行开始后，这里会显示步骤详情、工具调用与用量。'
+              : '这一轮是对话，没有步骤图。用过的工具会列在下面。'}
           </p>
           {view.toolCalls.length > 0 ? (
             <ul className="grid gap-2">
@@ -67,6 +68,12 @@ export function WorkbenchPanel() {
           ) : (
             <p className="text-center text-sm text-muted-foreground">暂无工具调用</p>
           )}
+          {view.runId && view.artifacts.length > 0 ? (
+            <div className="mt-4 border-t pt-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">产物</p>
+              <ArtifactBrowser runId={view.runId} artifacts={view.artifacts} />
+            </div>
+          ) : null}
         </div>
       ) : (
         <Tabs defaultValue="plan" className="min-h-0 flex-1 gap-0">
@@ -83,6 +90,9 @@ export function WorkbenchPanel() {
               </TabsTrigger>
               <TabsTrigger value="events">
                 <ScrollText /> 事件
+              </TabsTrigger>
+              <TabsTrigger value="artifacts">
+                <FileText /> 产物
               </TabsTrigger>
             </TabsList>
           </div>
@@ -107,6 +117,7 @@ export function WorkbenchPanel() {
                 step={selected}
                 toolCalls={view.toolCalls.filter((t) => t.stepId === selected.id)}
                 log={stepLogs?.[selected.id]}
+                artifacts={view.artifacts}
               />
             ) : (
               <p className="p-4 text-center text-sm text-muted-foreground">选择一个步骤查看详情</p>
@@ -137,6 +148,7 @@ export function WorkbenchPanel() {
                 step={selected}
                 toolCalls={view.toolCalls.filter((t) => t.stepId === selected.id)}
                 log={stepLogs?.[selected.id]}
+                artifacts={view.artifacts}
               />
             ) : (
               <p className="p-4 text-center text-sm text-muted-foreground">选择一个步骤查看详情</p>
@@ -203,6 +215,13 @@ export function WorkbenchPanel() {
               <RunEvents runId={view.runId} live={!view.isTerminal} />
             ) : (
               <p className="p-4 text-center text-sm text-muted-foreground">暂无事件</p>
+            )}
+          </TabsContent>
+          <TabsContent value="artifacts" className="min-h-0 overflow-y-auto scrollbar-thin">
+            {view.runId ? (
+              <ArtifactBrowser runId={view.runId} artifacts={view.artifacts} />
+            ) : (
+              <p className="p-4 text-center text-sm text-muted-foreground">暂无产物</p>
             )}
           </TabsContent>
         </Tabs>

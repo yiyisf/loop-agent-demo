@@ -23,7 +23,7 @@ describe('stream reconnection', () => {
     const first = await h.app.request(`/api/threads/${thread.id}/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: 'reconnect me' }),
+      body: JSON.stringify({ text: '调研 reconnect me' }),
       signal: controller.signal,
     });
     const runId = first.headers.get('x-run-id')!;
@@ -65,7 +65,7 @@ describe('stream reconnection', () => {
   it('replays only events after fromSeq but still sends the full final answer', async () => {
     const h = await createTestHarness();
     cleanup = h.cleanup;
-    const { runId, res } = await h.startRun('partial replay');
+    const { runId, res } = await h.startRun('调研 partial replay');
     await res.text();
     const events = await h.collectEvents(runId);
     const finalDone = events.find((e) => e.type === 'final.done')!;

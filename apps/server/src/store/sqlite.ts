@@ -44,6 +44,15 @@ export class SqliteThreadStore implements ThreadStore {
     return thread;
   }
 
+  async ensure(id: string, title = '新会话'): Promise<Thread> {
+    const existing = await this.get(id);
+    if (existing) return existing;
+    const now = nowIso();
+    const thread: Thread = { id, title, createdAt: now, updatedAt: now };
+    await this.db.insert(schema.threads).values(thread).onConflictDoNothing();
+    return (await this.get(id)) ?? thread;
+  }
+
   async list(): Promise<Thread[]> {
     return this.db.select().from(schema.threads).orderBy(desc(schema.threads.updatedAt));
   }

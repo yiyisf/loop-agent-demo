@@ -4,6 +4,7 @@ import type { AppConfig } from '../../config.js';
 import type { Logger } from '../../lib/logger.js';
 import type { ModelProvider } from '../../providers/model-provider.js';
 import type { ArtifactStore } from '../artifacts.js';
+import type { ExtractedAttachment } from '../attachments.js';
 import type { RunState } from '../projections.js';
 import type { ToolRegistry } from '../tools/registry.js';
 
@@ -20,6 +21,8 @@ export interface RunContext {
   signal: AbortSignal;
   /** Optional conversation context (earlier turns) for the planner. */
   history?: string;
+  /** Text extracted from files attached to this turn. */
+  attachments?: ExtractedAttachment[];
   emit(payload: RunEventPayload): RunEvent;
   /** Resolves when an external party (user) provides the value for `key`. */
   waitFor<T>(key: string): Promise<T>;

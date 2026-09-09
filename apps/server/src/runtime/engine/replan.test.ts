@@ -144,7 +144,7 @@ describe('LoopEngine reflection & replanning', () => {
     });
     cleanup = h.cleanup;
 
-    const { runId, res } = await h.startRun('finish early');
+    const { runId, res } = await h.startRun('调研 finish early');
     await res.text();
     await h.collectEvents(runId);
     const snapshot = h.ctx.runManager.get(runId)!;
@@ -172,7 +172,7 @@ describe('LoopEngine reflection & replanning', () => {
     });
     cleanup = h.cleanup;
 
-    const { runId, res } = await h.startRun('parallel');
+    const { runId, res } = await h.startRun('调研 parallel');
     await res.text();
     const events = await h.collectEvents(runId);
     expect(maxConcurrent).toBe(2);
@@ -190,7 +190,7 @@ describe('LoopEngine reflection & replanning', () => {
   it('fails the run when the token budget is exceeded but still writes a final answer', async () => {
     const h = await createTestHarness({ env: { BUDGET_MAX_TOTAL_TOKENS: '700' } });
     cleanup = h.cleanup;
-    const { runId, res } = await h.startRun('budget');
+    const { runId, res } = await h.startRun('调研 budget');
     await res.text();
     const events = await h.collectEvents(runId);
     const snapshot = h.ctx.runManager.get(runId)!;
@@ -208,7 +208,7 @@ describe('LoopEngine reflection & replanning', () => {
     };
     const h = await createTestHarness({ script });
     cleanup = h.cleanup;
-    const { runId, res } = await h.startRun('rule reflection');
+    const { runId, res } = await h.startRun('调研 rule reflection');
     await res.text();
     const events = await h.collectEvents(runId);
     const reflections = events.filter((e) => e.type === 'reflection');

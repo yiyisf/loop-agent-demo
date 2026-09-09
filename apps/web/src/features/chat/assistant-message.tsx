@@ -1,4 +1,4 @@
-import { AlertTriangle, Bot, ChevronRight, RotateCcw, Wrench } from 'lucide-react';
+import { AlertTriangle, ChevronRight, RotateCcw, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -7,12 +7,15 @@ import { deriveRunView } from '@/lib/run-view';
 import type { AgentUIMessage } from '@/lib/types';
 import { cn, formatDuration, formatTokens } from '@/lib/utils';
 import { ApprovalCard } from './parts/approval-card';
+import { ArtifactCard } from './parts/artifact-card';
+import { CitationList } from './parts/citation-list';
 import { FinalAnswer } from './parts/final-answer';
 import { PlanCard } from './parts/plan-card';
 import { PlanEditor } from './parts/plan-editor';
 import { QuestionCard } from './parts/question-card';
 import { StatusPill } from './parts/status-pill';
 import { ToolCallCard } from './parts/tool-call-card';
+import { UiWidgetCard } from './parts/ui-widget-card';
 
 export interface AssistantMessageProps {
   message: AgentUIMessage;
@@ -20,6 +23,8 @@ export interface AssistantMessageProps {
   isStreaming: boolean;
   /** Present only on the latest, settled message: re-runs its user input. */
   onRerun?: () => void;
+  /** Latest settled message: clicking a UI widget starts the next turn. */
+  onUiSubmit?: (text: string) => void;
 }
 
 export function AssistantMessage({
@@ -27,6 +32,7 @@ export function AssistantMessage({
   isLatest,
   isStreaming,
   onRerun,
+  onUiSubmit,
 }: AssistantMessageProps) {
   const view = useMemo(() => deriveRunView(message), [message]);
   const live = isLatest && isStreaming && !view.isTerminal;
@@ -49,16 +55,14 @@ export function AssistantMessage({
 
   return (
     <div className="flex gap-3">
-      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Bot className="size-4" />
+      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground">
+        助
       </div>
       <div className="min-w-0 flex-1 space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <StatusPill status={view.status} reason={view.statusReason} />
           {view.status === 'planning' && <span>正在分析任务并制定计划…</span>}
-          {view.status === 'executing' && !view.plan && (
-            <span>{view.mode === 'chat' ? '对话中…' : '正在回复…'}</span>
-          )}
+          {view.status === 'executing' && !view.plan && <span>正在回复…</span>}
           {view.usage && view.usage.totalTokens > 0 && (
             <span title="Token 用量">{formatTokens(view.usage.totalTokens)} tokens</span>
           )}
@@ -66,12 +70,12 @@ export function AssistantMessage({
         </div>
 
         {!view.plan && live && view.status === 'planning' && (
-          <div className="flex items-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm text-muted-foreground">
-            <Spinner /> 规划中，请稍候…
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner /> 正在整理步骤…
           </div>
         )}
         {!view.plan && live && view.status === 'executing' && !view.finalText && (
-          <div className="flex items-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner /> 正在回复…
           </div>
         )}
@@ -126,6 +130,19 @@ export function AssistantMessage({
           <QuestionCard key={q.id} question={q} interactive={interactive} />
         ))}
 
+        {view.uiBlocks.length > 0 && (
+          <div className="grid gap-2">
+            {view.uiBlocks.map((block) => (
+              <UiWidgetCard
+                key={block.id}
+                block={block}
+                interactive={isLatest && !isStreaming && !!onUiSubmit}
+                onPick={onUiSubmit}
+              />
+            ))}
+          </div>
+        )}
+
         {view.toolCalls.length > 0 && (
           <Collapsible open={toolsOpen || live} onOpenChange={setToolsOpen}>
             <CollapsibleTrigger asChild>
@@ -154,10 +171,10 @@ export function AssistantMessage({
         )}
 
         {(view.finalText || view.status === 'finalizing') && (
-          <div className="rounded-xl border bg-card px-4 py-3">
+          <div className={view.plan ? 'rounded-md border bg-card px-4 py-3' : undefined}>
             {!view.finalText && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Spinner /> 正在整理最终回答…
+                <Spinner /> 正在整理回答…
               </div>
             )}
             <FinalAnswer
@@ -172,6 +189,16 @@ export function AssistantMessage({
                 ) : undefined
               }
             />
+          </div>
+        )}
+
+        {view.citations.length > 0 && <CitationList citations={view.citations} />}
+        {view.artifacts.length > 0 && (
+          <div className="grid gap-1.5">
+            <p className="text-xs text-muted-foreground">产物 {view.artifacts.length}</p>
+            {view.artifacts.map((a) => (
+              <ArtifactCard key={a.id} artifact={a} runId={view.runId} />
+            ))}
           </div>
         )}
 

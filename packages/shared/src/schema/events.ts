@@ -7,7 +7,8 @@ import {
   StepResultSchema,
   StepStatusSchema,
 } from './plan.js';
-import { RunStatusSchema } from './run.js';
+import { ArtifactSchema, CitationSchema, RunStatusSchema } from './run.js';
+import { UiBlockSchema } from './ui.js';
 
 export const RunEventPayloadSchema = z.discriminatedUnion('type', [
   z.object({
@@ -80,6 +81,9 @@ export const RunEventPayloadSchema = z.discriminatedUnion('type', [
     stepId: z.string(),
     decision: ReflectionDecisionSchema,
   }),
+  z.object({ type: z.literal('citation.added'), citation: CitationSchema }),
+  z.object({ type: z.literal('artifact.created'), artifact: ArtifactSchema }),
+  z.object({ type: z.literal('ui.presented'), block: UiBlockSchema }),
   z.object({ type: z.literal('final.text_delta'), delta: z.string() }),
   z.object({ type: z.literal('final.done'), answer: z.string() }),
   z.object({ type: z.literal('usage'), usage: UsageSchema }),

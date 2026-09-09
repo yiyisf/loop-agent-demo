@@ -4,12 +4,13 @@ test.describe('loop-agent smoke', () => {
   test('runs a task end to end and survives a reload', async ({ page }) => {
     await page.goto('/');
     const composer = page.getByRole('textbox', { name: '任务输入' });
-    await composer.fill('计算 (12+30)*2 并说明过程');
+    await composer.fill('对比 Zustand、Jotai 与 Redux Toolkit 并给出选型建议');
     await composer.press('Enter');
 
     await expect(page).toHaveURL(/\/threads\/thr_/);
-    // Exact user bubble — the plan card also contains the task as "完成任务：…".
-    await expect(page.getByTestId('user-message')).toHaveText('计算 (12+30)*2 并说明过程');
+    await expect(page.getByTestId('user-message')).toHaveText(
+      '对比 Zustand、Jotai 与 Redux Toolkit 并给出选型建议',
+    );
     // Plan card shows up with the mock plan's steps.
     await expect(page.getByText('理解任务并拆解要点').first()).toBeVisible();
 
@@ -26,7 +27,10 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByText('今天')).toBeVisible();
     // CI retries reuse the in-memory store, so earlier attempts may leave extra threads.
     await expect(
-      page.getByRole('navigation').getByRole('link', { name: /计算/ }).first(),
+      page
+        .getByRole('navigation')
+        .getByRole('link', { name: /对比|Zustand|选型/ })
+        .first(),
     ).toBeVisible();
 
     // Cmd/Ctrl+K jumps back to the new-task page and focuses the composer.
@@ -50,22 +54,22 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByText('已拒绝')).toBeVisible();
   });
 
-  test('chat mode replies without a workflow plan', async ({ page }) => {
+  test('short conversation does not create a workflow plan', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: '对话' }).click();
     const composer = page.getByRole('textbox', { name: '任务输入' });
     await composer.fill('你好');
     await composer.press('Enter');
 
     await expect(page.getByText('对话模式')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('理解任务并拆解要点')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '对话' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '先规划' })).toHaveCount(0);
   });
 
   test('expanded plan wraps long step details instead of one truncated line', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: '先规划' }).click();
     const composer = page.getByRole('textbox', { name: '任务输入' });
-    await composer.fill('整理一份周报模板');
+    await composer.fill('先列出计划等我确认再执行：整理一份周报模板');
     await composer.press('Enter');
 
     await expect(page.getByText('确认计划', { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -88,9 +92,8 @@ test.describe('loop-agent smoke', () => {
 
   test('plan_first lets the user edit the plan before execution', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: '先规划' }).click();
     const composer = page.getByRole('textbox', { name: '任务输入' });
-    await composer.fill('整理一份周报模板');
+    await composer.fill('先列出计划等我确认再执行：整理一份周报模板');
     await composer.press('Enter');
 
     await expect(page.getByText('确认计划', { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -108,7 +111,7 @@ test.describe('loop-agent smoke', () => {
     await page.goto('/');
     await expect(page.getByRole('button', { name: /规划方案/ })).toBeVisible();
     const composer = page.getByRole('textbox', { name: '任务输入' });
-    await composer.fill('计算 (12+30)*2 并说明过程');
+    await composer.fill('对比 Zustand、Jotai 与 Redux Toolkit 并给出选型建议');
     await composer.press('Enter');
     await expect(page.getByRole('heading', { name: '结论' })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText('已完成').first()).toBeVisible();
@@ -117,6 +120,84 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByTestId('user-message')).toHaveCount(2);
     await expect(page.getByRole('heading', { name: '结论' })).toHaveCount(2, { timeout: 45_000 });
     await expect(page.getByRole('button', { name: '重新生成' })).toHaveCount(1);
+  });
+
+  test('uploaded markdown is summarized in chat', async ({ page }) => {
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await page.getByLabel('选择要上传的文件').setInputFiles({
+      name: 'notes.md',
+      mimeType: 'text/markdown',
+      buffer: Buffer.from('# 季度目标\n提高续费率到 40%。\n下一阶段做客户回访。\n'),
+    });
+    await expect(page.getByTestId('composer-attachments')).toContainText('notes.md');
+    await composer.fill('总结这份文件的要点');
+    await composer.press('Enter');
+
+    await expect(page.getByTestId('user-message').getByText('notes.md')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/续费率|季度目标/).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('理解任务并拆解要点')).toHaveCount(0);
+  });
+
+  test('fetch with auto-approve shows a clickable source', async ({ page }) => {
+    await page.goto('/');
+    await page.getByLabel('自动批准工具').click();
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('抓取 https://example.com/ 的网页并总结');
+    await composer.press('Enter');
+
+    const sources = page.getByTestId('citation-list');
+    await expect(sources).toBeVisible({ timeout: 45_000 });
+    await sources.getByRole('button').first().click();
+    await expect(page.getByTestId('citation-excerpt')).toBeVisible();
+    await expect(page.getByText(/example\.com|Example Domain/i).first()).toBeVisible();
+  });
+
+  test('workbench previews a markdown artifact by type', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('编写一份 README 并保存到工作区');
+    await composer.press('Enter');
+    await expect(page.getByTestId('artifact-card')).toBeVisible({ timeout: 45_000 });
+    const artifactsTab = page.getByRole('tab', { name: /产物/ });
+    if (!(await artifactsTab.isVisible())) {
+      await page.getByRole('button', { name: '切换工作台' }).click();
+    }
+    await artifactsTab.click();
+    await expect(page.getByTestId('artifact-preview')).toBeVisible();
+    await expect(page.getByTestId('artifact-preview').getByText('Markdown')).toBeVisible();
+    await expect(page.getByTestId('artifact-preview').getByText(/Mock README/)).toBeVisible();
+  });
+
+  test('choice widget click starts the next turn', async ({ page }) => {
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('给我三个部署环境选项让我选一个');
+    await composer.press('Enter');
+    await expect(page.getByTestId('ui-choice')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('请直接在上方卡片里操作')).toBeVisible();
+    await expect(page.getByText('理解任务并拆解要点')).toHaveCount(0);
+    await page.getByRole('button', { name: '生产环境' }).click();
+    await expect(page.getByTestId('user-message').getByText('我选择：生产环境')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/已收到你的选择/).first()).toBeVisible({ timeout: 30_000 });
+  });
+
+  test('workspace write appears as an artifact card in chat', async ({ page }) => {
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('编写一份 README 并保存到工作区');
+    await composer.press('Enter');
+
+    await expect(page.getByTestId('artifact-card')).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByTestId('artifact-card').getByText('README.md')).toBeVisible();
+    await expect(
+      page.getByTestId('artifact-card').getByRole('link', { name: '下载' }),
+    ).toBeVisible();
   });
 
   test('retry after a denied approval starts a new run', async ({ page }) => {

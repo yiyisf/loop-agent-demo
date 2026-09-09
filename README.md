@@ -16,11 +16,12 @@
 | 动态规划 | Planner 生成带依赖关系的步骤 DAG；Reflector 在步骤成功/失败后给出补丁式修订（已完成步骤不可变） |
 | 并行执行 | 依赖就绪的步骤按 `BUDGET_MAX_PARALLEL` 并发执行 |
 | 内置工具 | `web_search`、`http_fetch`、`calculator`、`workspace_read/write/list`、`read_artifact`、`ask_user`、`finish_step` |
-| 人在回路 | 高风险工具审批（可开启自动批准）、Agent 向用户提问；模式：对话 / 自动路由 / 先确认计划 |
+| 人在回路 | 高风险工具审批（可开启自动批准）、Agent 向用户提问；需要时自动列出计划供确认 |
 | 预算控制 | 最大重规划次数 / 步骤数 / 总耗时 / 总 token；超限自动进入收尾 |
 | 实时可视化 | 计划卡片、步骤 DAG（React Flow）、工具调用详情、工作台（计划 / 步骤 / 用量与成本 / 事件） |
 | 持久化与恢复 | SQLite 保存会话、消息、运行、计划修订、事件、审批、产物元数据；服务重启后未完成运行标记为失败并保留进度 |
 | 断线重连 | `GET /api/runs/:id/stream?fromSeq=` 回放并续流；前端自动重连 |
+| AG-UI 适配 | `POST /api/ag-ui` 把内部 `RunEvent` 译成 AG-UI SSE（外部客户端）；本仓库 Web 仍走 UI Message Stream |
 | 会话管理 | 模型自动生成标题、按日期分组、搜索、重命名、删除 |
 | 可观测性 | Pino 结构化日志、usage 事件、按模型单价表的成本估算、可选 AI SDK 遥测（`OTEL_ENABLED`）、事件调试视图 |
 | 交付 | 单进程生产部署（API + 静态前端）、Dockerfile / docker-compose、Playwright E2E |
@@ -33,6 +34,7 @@
 │  TanStack Router + Query · zustand · AI SDK useChat(UI Message Stream)      │
 └──────────────────────────────────┬─────────────────────────────────────────┘
                      REST + SSE    │  POST /api/threads/:id/messages   GET /api/runs/:id/stream
+                                   │  POST /api/ag-ui（外部 AG-UI 客户端）
 ┌──────────────────────────────────▼─────────────────────────────────────────┐
 │ apps/server (Hono, Node 22)                                                │
 │  routes ─▶ RunManager ─▶ LoopEngine                                        │
@@ -76,7 +78,7 @@ API 固定绑 IPv4 回环；前端仍监听默认的 `localhost`（Linux 上常�
 
 试一下 HITL：
 
-- 在输入框上方切换到 **先规划** 模式：Agent 生成计划后暂停，可编辑步骤再确认。
+- 在消息里写「先列出计划等我确认再执行」：Agent 生成计划后暂停，可编辑步骤再确认。
 - 输入包含“抓取 / 网页 / http” 的任务：mock 模型会调用 `http_fetch`，触发审批卡（关闭“自动批准”开关）。
 - 输入包含“问我 / 询问”的任务：Agent 会通过 `ask_user` 向你提问。
 
@@ -140,6 +142,23 @@ SEARCH_API_KEY=tvly-...
 | POST | `/api/runs/:id/plan/confirm` | `plan_first` 确认，可携带编辑后的 `steps` |
 | POST | `/api/runs/:id/approvals/:approvalId` | `{ approved, reason? }` |
 | POST | `/api/runs/:id/questions/:questionId` | `{ answer }` |
+| POST | `/api/ag-ui` | **AG-UI**：`RunAgentInput` → SSE 事件；HITL 以 `RUN_FINISHED` + `outcome.interrupt` 结束本轮 HTTP，再用 `resume[]` 续跑 |
+
+`POST /api/ag-ui` 请求体（字段对齐 AG-UI，缺省均可）：
+
+```ts
+{
+  threadId?: string;                     // 客户端会话 id；不存在则按该 id 建会话
+  messages: Array<{                      // 取最后一条 user 的文本
+    id?: string;
+    role: string;
+    content?: string | Array<{ type?: string; text?: string }>;
+    toolCallId?: string;
+  }>;
+  forwardedProps?: { model?: string; autoApprove?: boolean; mode?: 'auto' | 'chat' | 'plan_first' };
+  resume?: Array<{ interruptId: string; status: 'resolved' | 'cancelled'; payload?: unknown }>;
+}
+```
 
 `POST /api/threads/:id/messages` 请求体：
 
@@ -162,7 +181,7 @@ apps/server/src
   app.ts                  Hono 应用组装：路由、CORS、静态托管、启动恢复
   config.ts               环境变量 Schema
   providers/              模型提供商适配（openai / anthropic / openai-compatible / mock）
-  routes/                 threads / runs / meta
+  routes/                 threads / runs / meta / ag-ui
   runtime/
     engine/               loop-engine, planner, executor, reflector, finalizer, budget, hitl, approval
     tools/                工具注册表与内置工具
@@ -195,7 +214,7 @@ e2e/                      Playwright 端到端测试
 | `pnpm lint` / `pnpm format` | Biome 检查 / 格式化 |
 | `pnpm e2e` | Playwright 端到端测试（首次需 `pnpm exec playwright install chromium`） |
 
-输入框可选 **对话**（普通沟通 + 工具）、**自动**（按内容决定是否规划工作流）、**先规划**（先出计划再执行）。右侧工作台可拖动左缘调宽。
+输入框不切换模式：普通问答直接回复，多步任务自动规划执行；可以说「先看计划」再确认。右侧工作台可拖动左缘调宽。
 
 ## 生产部署
 

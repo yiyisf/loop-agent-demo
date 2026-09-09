@@ -196,6 +196,7 @@ export const defaultMockScript: MockScript = (ctx) => {
       const workTools: string[] = [];
       if (/calculator|计算/.test(task)) workTools.push('calculator');
       if (wantsFetch) workTools.push('http_fetch');
+      if (/保存|工作区|readme|编写|文档/.test(task)) workTools.push('workspace_write');
       return {
         json: {
           objective: `完成任务：${task.slice(0, 120)}`,
@@ -270,6 +271,21 @@ export const defaultMockScript: MockScript = (ctx) => {
           chunkDelayMs: 15,
         };
       }
+      if (ctx.callIndex === 0 && ctx.toolNames.includes('workspace_write')) {
+        return {
+          reasoning: '把结果写入工作区。',
+          toolCalls: [
+            {
+              toolName: 'workspace_write',
+              input: {
+                path: 'README.md',
+                content: '# Mock README\n\n这是演示用的工作区产物。\n',
+              },
+            },
+          ],
+          chunkDelayMs: 15,
+        };
+      }
       if (ctx.callIndex === 0 && ctx.toolNames.includes('calculator')) {
         return {
           reasoning: '需要先做一个简单计算来验证工具可用。',
@@ -294,6 +310,121 @@ export const defaultMockScript: MockScript = (ctx) => {
     }
     case 'chat': {
       const task = taskFromPrompt(ctx.lastUserText) || ctx.lastUserText;
+      const files = attachmentBlocks(ctx.systemText);
+      if (files.length) {
+        const first = files[0]!;
+        const points = first.body
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .slice(0, 6)
+          .join('\n');
+        return {
+          text: `根据附件「${first.name}」整理的要点：\n\n${points}\n\n（基于上传文件回答，没有生成工作流计划。）`,
+          chunkDelayMs: 15,
+        };
+      }
+      if (/我选择：|表单「|查看指标：|查看行：/.test(task)) {
+        return {
+          text: `已收到你的选择。\n\n${task.slice(0, 400)}\n\n可以继续改选项，或说「按步骤做」。`,
+          chunkDelayMs: 15,
+        };
+      }
+      if (ctx.callIndex > 0 && /present_ui/.test(ctx.transcript)) {
+        return {
+          text: '请直接在上方卡片里操作，选好或提交后我会按你的输入继续。',
+          chunkDelayMs: 15,
+        };
+      }
+      if (ctx.callIndex === 0 && ctx.toolNames.includes('present_ui') && /表单|填一个/.test(task)) {
+        return {
+          toolCalls: [
+            {
+              toolName: 'present_ui',
+              input: {
+                kind: 'form',
+                title: '周报',
+                prompt: '填写后提交，我会按你的内容继续。',
+                fields: [
+                  { name: 'done', label: '本周完成', type: 'textarea', required: true },
+                  { name: 'next', label: '下周计划', type: 'text' },
+                ],
+              },
+            },
+          ],
+          chunkDelayMs: 15,
+        };
+      }
+      if (
+        ctx.callIndex === 0 &&
+        ctx.toolNames.includes('present_ui') &&
+        /指标卡|metric/.test(task)
+      ) {
+        return {
+          toolCalls: [
+            {
+              toolName: 'present_ui',
+              input: {
+                kind: 'metric',
+                title: '本周指标',
+                items: [
+                  { label: '访问', value: '1,200', hint: '周环比 +8%' },
+                  { label: '转化', value: '3.1%' },
+                ],
+              },
+            },
+          ],
+          chunkDelayMs: 15,
+        };
+      }
+      if (
+        ctx.callIndex === 0 &&
+        ctx.toolNames.includes('present_ui') &&
+        /用表格|table/.test(task)
+      ) {
+        return {
+          toolCalls: [
+            {
+              toolName: 'present_ui',
+              input: {
+                kind: 'table',
+                title: '本周三项指标',
+                columns: ['项', '值'],
+                rows: [
+                  ['访问', '1200'],
+                  ['转化', '3.1%'],
+                  ['留存', '41%'],
+                ],
+              },
+            },
+          ],
+          chunkDelayMs: 15,
+        };
+      }
+      if (
+        ctx.callIndex === 0 &&
+        ctx.toolNames.includes('present_ui') &&
+        /选项|让我选|choice/.test(task)
+      ) {
+        return {
+          toolCalls: [
+            {
+              toolName: 'present_ui',
+              input: {
+                kind: 'choice',
+                title: '部署环境',
+                prompt: '选一个环境继续',
+                options: [
+                  { id: 'dev', label: '开发环境', description: '本地调试' },
+                  { id: 'staging', label: '预发环境' },
+                  { id: 'prod', label: '生产环境' },
+                ],
+              },
+            },
+          ],
+          chunkDelayMs: 15,
+        };
+      }
       if (
         ctx.callIndex === 0 &&
         ctx.toolNames.includes('calculator') &&
@@ -315,7 +446,7 @@ export const defaultMockScript: MockScript = (ctx) => {
         };
       }
       return {
-        text: `这是 **对话模式** 的回复，没有生成工作流计划。\n\n针对「${task.slice(0, 80)}」：可以直接继续提问，或切换到「自动 / 先规划」让我拆成步骤执行。`,
+        text: `这是 **对话模式** 的回复，没有生成工作流计划。\n\n针对「${task.slice(0, 80)}」：可以直接继续提问，或者说「按步骤做」让我拆开执行。`,
         chunkDelayMs: 15,
       };
     }
@@ -361,6 +492,14 @@ function shortTitle(task: string): string {
 function taskFromPrompt(prompt: string): string {
   const m = /Task:\n([\s\S]*?)(?:\n\n|$)/.exec(prompt);
   return (m?.[1] ?? prompt).trim();
+}
+
+function attachmentBlocks(text: string): Array<{ name: string; body: string }> {
+  const blocks: Array<{ name: string; body: string }> = [];
+  for (const m of text.matchAll(/###\s+(.+)\n([\s\S]*?)(?=\n###\s+|\n##\s+[A-Z]|$)/g)) {
+    blocks.push({ name: m[1]?.trim() ?? 'file', body: (m[2] ?? '').trim() });
+  }
+  return blocks;
 }
 
 function summarizeGoal(systemText: string): string {

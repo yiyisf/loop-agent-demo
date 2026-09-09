@@ -98,6 +98,45 @@ describe('deriveRunView', () => {
     expect(view.plan).toBeUndefined();
     expect(view.steps).toEqual([]);
     expect(view.finalText).toBe('hello');
+    expect(view.citations).toEqual([]);
+    expect(view.artifacts).toEqual([]);
+    expect(view.uiBlocks).toEqual([]);
+  });
+
+  it('collects citations and artifacts', () => {
+    const message: AgentUIMessage = {
+      id: 'm1',
+      role: 'assistant',
+      parts: [
+        {
+          type: 'data-citation',
+          id: 'cite:1',
+          data: {
+            id: 'c1',
+            title: 'Example Domain',
+            url: 'https://example.com/',
+            source: 'http_fetch',
+            excerpt: 'This domain is for use in documentation.',
+          },
+        },
+        {
+          type: 'data-artifact',
+          id: 'art:1',
+          data: {
+            id: 'a1',
+            runId: 'run_1',
+            stepId: 'work',
+            name: 'README.md',
+            mime: 'text/markdown',
+            size: 12,
+            createdAt: '2026-01-01T00:00:00.000Z',
+          },
+        },
+      ],
+    };
+    const view = deriveRunView(message);
+    expect(view.citations).toHaveLength(1);
+    expect(view.artifacts[0]?.name).toBe('README.md');
   });
 
   it('falls back to plan steps when no step part arrived yet', () => {

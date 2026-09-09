@@ -26,7 +26,7 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
     if (pending && pending.threadId === threadId && !sentPending.current) {
       sentPending.current = true;
       setPendingMessage(null);
-      chat.send(pending.text);
+      chat.send({ text: pending.text, attachments: pending.attachments ?? [] });
     }
   }, [pending, threadId, chat, setPendingMessage]);
 
@@ -91,7 +91,12 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
       <output aria-live="polite" className="sr-only">
         {announcement}
       </output>
-      <MessageList messages={chat.messages} isStreaming={chat.isBusy} onRerun={chat.send} />
+      <MessageList
+        messages={chat.messages}
+        isStreaming={chat.isBusy}
+        onRerun={chat.send}
+        onUiSubmit={chat.send}
+      />
       <div className="shrink-0 px-4 pb-4">
         <div className="mx-auto w-full max-w-3xl">
           <NoticeStack />
@@ -105,11 +110,11 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
             onSend={chat.send}
             onStop={stop}
             busy={chat.isBusy}
-            placeholder={chat.isBusy ? '运行中…（Esc 停止）' : '继续提问或下达新任务'}
+            placeholder={chat.isBusy ? '运行中…（Esc 停止）' : '继续说，或描述下一件要做的事'}
           />
           <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
             Agent 可能出错，请核实关键结论。
-            <kbd className="ml-2 rounded border px-1 font-mono text-[10px]">⌘/Ctrl K</kbd> 新任务
+            <kbd className="ml-2 rounded border px-1 font-mono text-[10px]">⌘/Ctrl K</kbd> 新会话
           </p>
         </div>
       </div>

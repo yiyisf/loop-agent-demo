@@ -31,7 +31,17 @@ export function runRoutes(ctx: AppContext) {
     if (!snapshot) {
       const run = await stores.runs.get(runId);
       if (!run) throw new HTTPException(404, { message: 'Run not found' });
-      return c.json({ run, plan: null, approvals: [], questions: [], toolCalls: [], lastSeq: 0 });
+      return c.json({
+        run,
+        plan: null,
+        approvals: [],
+        questions: [],
+        toolCalls: [],
+        citations: [],
+        artifacts: [],
+        uiBlocks: [],
+        lastSeq: 0,
+      });
     }
     return c.json(snapshot);
   });

@@ -3,6 +3,7 @@ import { ToolRegistry } from '../registry.js';
 import { calculatorTool } from './calculator.js';
 import { askUserTool, finishStepTool } from './control.js';
 import { httpFetchTool } from './http-fetch.js';
+import { presentUiTool } from './present-ui.js';
 import { webSearchTool } from './web-search.js';
 import {
   readArtifactTool,
@@ -22,6 +23,7 @@ export function createDefaultToolRegistry(config: AppConfig): ToolRegistry {
     .register(workspaceReadTool)
     .register(workspaceListTool)
     .register(readArtifactTool)
+    .register(presentUiTool)
     .register(askUserTool)
     .register(finishStepTool);
 }

@@ -14,7 +14,7 @@ describe('LoopEngine (serial)', () => {
     const h = await createTestHarness();
     cleanup = h.cleanup;
 
-    const { runId, res, thread } = await h.startRun('计算 (12+30)*2 并说明');
+    const { runId, res, thread } = await h.startRun('调研并计算 (12+30)*2 并说明');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/event-stream');
 
@@ -70,7 +70,7 @@ describe('LoopEngine (serial)', () => {
     const h = await createTestHarness({ script });
     cleanup = h.cleanup;
 
-    const { runId, res } = await h.startRun('任务');
+    const { runId, res } = await h.startRun('调研任务');
     await res.text();
     await h.collectEvents(runId);
 
@@ -91,7 +91,7 @@ describe('LoopEngine (serial)', () => {
     const h = await createTestHarness({ script });
     cleanup = h.cleanup;
 
-    const { runId, res } = await h.startRun('慢任务');
+    const { runId, res } = await h.startRun('调研慢任务');
     await new Promise((r) => setTimeout(r, 150));
     const cancel = await h.app.request(`/api/runs/${runId}/cancel`, { method: 'POST' });
     expect(cancel.status).toBe(200);
@@ -111,7 +111,7 @@ describe('LoopEngine (serial)', () => {
     const h = await createTestHarness({ script });
     cleanup = h.cleanup;
 
-    const { runId, res, thread } = await h.startRun('a');
+    const { runId, res, thread } = await h.startRun('调研 a');
     const second = await h.app.request(`/api/threads/${thread.id}/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
