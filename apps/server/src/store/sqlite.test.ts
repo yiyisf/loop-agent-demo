@@ -172,6 +172,17 @@ describe('SQLite persistence', () => {
     await second.close();
   });
 
+  it('ensures a client-provided thread id without duplicating the row', async () => {
+    dataDir = await mkdtemp(path.join(os.tmpdir(), 'loop-agent-sqlite-'));
+    const stores = await createSqliteStores({ url: `file:${path.join(dataDir, 'test.db')}` });
+    const first = await stores.threads.ensure('thr_client', '外部会话');
+    const second = await stores.threads.ensure('thr_client', '应被忽略');
+    expect(second.id).toBe('thr_client');
+    expect(second.title).toBe(first.title);
+    expect(await stores.threads.list()).toHaveLength(1);
+    await stores.close();
+  });
+
   it('closes out runs interrupted by a restart and records them in the thread history', async () => {
     dataDir = await mkdtemp(path.join(os.tmpdir(), 'loop-agent-sqlite-'));
     const url = `file:${path.join(dataDir, 'test.db')}`;

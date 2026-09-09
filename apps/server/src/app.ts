@@ -6,6 +6,7 @@ import { HTTPException } from 'hono/http-exception';
 import type { AppConfig } from './config.js';
 import type { Logger } from './lib/logger.js';
 import { createModelProvider, type ModelProvider } from './providers/model-provider.js';
+import { agUiRoutes } from './routes/ag-ui.js';
 import { metaRoutes } from './routes/meta.js';
 import { runRoutes } from './routes/runs.js';
 import { threadRoutes } from './routes/threads.js';
@@ -104,6 +105,7 @@ export async function createApp(deps: AppDeps) {
   app.route('/api', metaRoutes(ctx));
   app.route('/api/threads', threadRoutes(ctx));
   app.route('/api/runs', runRoutes(ctx));
+  app.route('/api/ag-ui', agUiRoutes(ctx));
 
   if (config.STATIC_DIR) {
     const root = path.relative(process.cwd(), path.resolve(config.STATIC_DIR)) || '.';

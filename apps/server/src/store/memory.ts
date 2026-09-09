@@ -16,8 +16,18 @@ export class MemoryThreadStore implements ThreadStore {
   private messagesByThread = new Map<string, LoopAgentUIMessage[]>();
 
   async create(title = '新会话'): Promise<Thread> {
+    return this.insert(newId('thr'), title);
+  }
+
+  async ensure(id: string, title = '新会话'): Promise<Thread> {
+    const existing = await this.get(id);
+    if (existing) return existing;
+    return this.insert(id, title);
+  }
+
+  private insert(id: string, title: string): Thread {
     const now = nowIso();
-    const thread: Thread = { id: newId('thr'), title, createdAt: now, updatedAt: now };
+    const thread: Thread = { id, title, createdAt: now, updatedAt: now };
     this.threads.set(thread.id, thread);
     this.messagesByThread.set(thread.id, []);
     return { ...thread };

@@ -9,6 +9,8 @@ export interface StoredArtifact extends Artifact {
 
 export interface ThreadStore {
   create(title?: string): Promise<Thread>;
+  /** Returns the thread with `id`, creating it if needed (AG-UI clients pick their own threadId). */
+  ensure(id: string, title?: string): Promise<Thread>;
   list(): Promise<Thread[]>;
   get(id: string): Promise<Thread | undefined>;
   delete(id: string): Promise<boolean>;
