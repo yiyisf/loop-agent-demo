@@ -1,5 +1,7 @@
 import type {
   Approval,
+  Artifact,
+  Citation,
   LoopAgentDataParts,
   Plan,
   PlanDiff,
@@ -28,6 +30,8 @@ export interface RunView {
   toolCalls: ToolCallRecord[];
   approvals: Approval[];
   questions: UserQuestion[];
+  citations: Citation[];
+  artifacts: Artifact[];
   usage?: Usage;
   model?: string;
   mode?: RunMode;
@@ -41,6 +45,8 @@ export function deriveRunView(message: AgentUIMessage | undefined): RunView {
     toolCalls: [],
     approvals: [],
     questions: [],
+    citations: [],
+    artifacts: [],
     finalText: '',
     isTerminal: false,
   };
@@ -79,6 +85,12 @@ export function deriveRunView(message: AgentUIMessage | undefined): RunView {
         break;
       case 'data-question':
         view.questions.push(part.data as UserQuestion);
+        break;
+      case 'data-citation':
+        view.citations.push(part.data as Citation);
+        break;
+      case 'data-artifact':
+        view.artifacts.push(part.data as Artifact);
         break;
       case 'data-usage':
         view.usage = part.data as Usage;

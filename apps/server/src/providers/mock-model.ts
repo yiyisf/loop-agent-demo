@@ -196,6 +196,7 @@ export const defaultMockScript: MockScript = (ctx) => {
       const workTools: string[] = [];
       if (/calculator|计算/.test(task)) workTools.push('calculator');
       if (wantsFetch) workTools.push('http_fetch');
+      if (/保存|工作区|readme|编写|文档/.test(task)) workTools.push('workspace_write');
       return {
         json: {
           objective: `完成任务：${task.slice(0, 120)}`,
@@ -270,6 +271,21 @@ export const defaultMockScript: MockScript = (ctx) => {
           chunkDelayMs: 15,
         };
       }
+      if (ctx.callIndex === 0 && ctx.toolNames.includes('workspace_write')) {
+        return {
+          reasoning: '把结果写入工作区。',
+          toolCalls: [
+            {
+              toolName: 'workspace_write',
+              input: {
+                path: 'README.md',
+                content: '# Mock README\n\n这是演示用的工作区产物。\n',
+              },
+            },
+          ],
+          chunkDelayMs: 15,
+        };
+      }
       if (ctx.callIndex === 0 && ctx.toolNames.includes('calculator')) {
         return {
           reasoning: '需要先做一个简单计算来验证工具可用。',
@@ -294,6 +310,20 @@ export const defaultMockScript: MockScript = (ctx) => {
     }
     case 'chat': {
       const task = taskFromPrompt(ctx.lastUserText) || ctx.lastUserText;
+      const files = attachmentBlocks(ctx.systemText);
+      if (files.length) {
+        const first = files[0]!;
+        const points = first.body
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .slice(0, 6)
+          .join('\n');
+        return {
+          text: `根据附件「${first.name}」整理的要点：\n\n${points}\n\n（基于上传文件回答，没有生成工作流计划。）`,
+          chunkDelayMs: 15,
+        };
+      }
       if (
         ctx.callIndex === 0 &&
         ctx.toolNames.includes('calculator') &&
@@ -361,6 +391,16 @@ function shortTitle(task: string): string {
 function taskFromPrompt(prompt: string): string {
   const m = /Task:\n([\s\S]*?)(?:\n\n|$)/.exec(prompt);
   return (m?.[1] ?? prompt).trim();
+}
+
+function attachmentBlocks(text: string): Array<{ name: string; body: string }> {
+  const blocks: Array<{ name: string; body: string }> = [];
+  const re = /###\s+(.+)\n([\s\S]*?)(?=\n###\s+|\n##\s+[A-Z]|$)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    blocks.push({ name: m[1]?.trim() ?? 'file', body: (m[2] ?? '').trim() });
+  }
+  return blocks;
 }
 
 function summarizeGoal(systemText: string): string {

@@ -1,6 +1,14 @@
 import type { Usage } from './schema/common.js';
 import type { Plan, PlanDiff, Step } from './schema/plan.js';
-import type { Approval, RunMode, RunStatus, UserQuestion } from './schema/run.js';
+import type {
+  Approval,
+  Artifact,
+  AttachmentPreview,
+  Citation,
+  RunMode,
+  RunStatus,
+  UserQuestion,
+} from './schema/run.js';
 
 /**
  * Custom `data-*` parts streamed to the UI (AI SDK UI Message Stream).
@@ -56,6 +64,12 @@ export type LoopAgentDataParts = {
     level: 'info' | 'warn' | 'error';
     message: string;
   };
+  /** User-uploaded file preview (also used on user messages). */
+  attachment: AttachmentPreview;
+  /** Source excerpt from fetch/search. */
+  citation: Citation;
+  /** Workspace artifact produced during the run. */
+  artifact: Artifact;
 };
 
 export type LoopAgentDataPartType = `data-${keyof LoopAgentDataParts & string}`;
@@ -75,6 +89,9 @@ export const dataPartIds = {
   tool: (toolCallId: string) => `tool:${toolCallId}`,
   approval: (approvalId: string) => `approval:${approvalId}`,
   question: (questionId: string) => `question:${questionId}`,
+  attachment: (name: string) => `att:${name}`,
+  citation: (id: string) => `cite:${id}`,
+  artifact: (id: string) => `art:${id}`,
 } as const;
 
 /** Response headers used by the streaming endpoints. */

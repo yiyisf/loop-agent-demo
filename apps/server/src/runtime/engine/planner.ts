@@ -6,6 +6,7 @@ import {
   validateStepGraph,
 } from '@loop-agent/shared';
 import { nowIso } from '../../lib/ids.js';
+import { formatAttachmentsPrompt } from '../attachments.js';
 import { plannerSystemPrompt, plannerUserPrompt } from '../prompts.js';
 import { generateStructured, PLAN_DRAFT_CONTRACT } from '../structured.js';
 import { PlanningError, type RunContext, throwIfAborted, toUsage } from './context.js';
@@ -30,6 +31,7 @@ export async function createPlan(ctx: RunContext): Promise<Plan> {
     toolsMarkdown: ctx.tools.describeForPlanner(),
     maxSteps: ctx.budget.maxSteps,
     history: ctx.history,
+    attachments: formatAttachmentsPrompt(ctx.attachments) || undefined,
   };
   const model = ctx.models.model('planner', ctx.run.model);
 

@@ -116,6 +116,9 @@ describe('HITL: tool approval', () => {
     const events = await h.collectEvents(runId);
     expect(events.some((e) => e.type === 'approval.requested')).toBe(false);
     expect(events.some((e) => e.type === 'tool.result' && e.toolName === 'http_fetch')).toBe(true);
+    expect(events.some((e) => e.type === 'citation.added')).toBe(true);
+    const snapshot = h.ctx.runManager.get(runId)!;
+    expect(snapshot.citations.some((c) => c.url?.includes('example.com'))).toBe(true);
   }, 15_000);
 });
 

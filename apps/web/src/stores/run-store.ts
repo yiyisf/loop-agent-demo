@@ -1,3 +1,4 @@
+import type { AttachmentDraft } from '@loop-agent/shared';
 import { create } from 'zustand';
 
 export interface StepLog {
@@ -17,7 +18,7 @@ interface RunStoreState {
   stepLogs: Record<string, Record<string, StepLog>>;
   notices: Notice[];
   /** Message queued from the landing page to be sent once the thread page mounts. */
-  pendingMessage: { threadId: string; text: string } | null;
+  pendingMessage: { threadId: string; text: string; attachments?: AttachmentDraft[] } | null;
   model: string | undefined;
   /** Skip approval prompts for medium/high-risk tools. */
   autoApprove: boolean;

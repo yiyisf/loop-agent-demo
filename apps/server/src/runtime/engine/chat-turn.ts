@@ -1,5 +1,7 @@
 import { emptyUsage } from '@loop-agent/shared';
 import { isStepCount, ToolLoopAgent } from 'ai';
+import { formatAttachmentsPrompt } from '../attachments.js';
+import { emitToolCitations } from '../citations.js';
 import { chatSystemPrompt } from '../prompts.js';
 import { FINISH_STEP_TOOL } from '../tools/builtin/index.js';
 import type { ToolRuntime } from '../tools/types.js';
@@ -36,7 +38,11 @@ export async function runChatTurn(ctx: RunContext): Promise<void> {
 
   const agent = new ToolLoopAgent({
     model: ctx.models.model('chat', ctx.run.model),
-    instructions: chatSystemPrompt(ctx.tools.describeForPlanner(), ctx.history),
+    instructions: chatSystemPrompt(
+      ctx.tools.describeForPlanner(),
+      ctx.history,
+      formatAttachmentsPrompt(ctx.attachments),
+    ),
     tools,
     stopWhen: [isStepCount(maxToolCalls)],
     telemetry: telemetryFor(ctx.config, 'chat'),
@@ -80,6 +86,7 @@ export async function runChatTurn(ctx: RunContext): Promise<void> {
           durationMs: Date.now() - (toolStarts.get(part.toolCallId) ?? Date.now()),
         });
         ctx.emit({ type: 'usage', usage: { ...emptyUsage(), toolCalls: 1 } });
+        emitToolCitations(ctx, part.toolName, part.output);
         break;
       case 'tool-error':
         ctx.emit({

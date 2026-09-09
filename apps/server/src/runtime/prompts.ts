@@ -5,6 +5,7 @@ export interface PlannerPromptInput {
   toolsMarkdown: string;
   maxSteps: number;
   history?: string;
+  attachments?: string;
   previousErrors?: string[];
 }
 
@@ -23,9 +24,15 @@ Available tools:
 ${toolsMarkdown}`;
 }
 
-export function plannerUserPrompt({ task, history, previousErrors }: PlannerPromptInput): string {
+export function plannerUserPrompt({
+  task,
+  history,
+  attachments,
+  previousErrors,
+}: PlannerPromptInput): string {
   const parts = [`Task:\n${task}`];
   if (history) parts.push(`Conversation context:\n${history}`);
+  if (attachments) parts.push(`Attached files:\n${attachments}`);
   if (previousErrors?.length) {
     parts.push(
       `Your previous plan was rejected for these reasons; fix them:\n${previousErrors.map((e) => `- ${e}`).join('\n')}`,
@@ -127,15 +134,20 @@ Just finished step "${input.step.id}" with status ${input.result.status}:
 ${truncate(input.result.summary, 1500)}${notes}`;
 }
 
-export function chatSystemPrompt(toolsMarkdown: string, history?: string): string {
+export function chatSystemPrompt(
+  toolsMarkdown: string,
+  history?: string,
+  attachments?: string,
+): string {
   const context = history ? `\n\n## Earlier conversation\n${history}` : '';
+  const files = attachments ? `\n\n## Attached files\nGround your answer in these files.\n${attachments}` : '';
   return `You are a helpful assistant in a conversation. Answer the user directly.
 Use tools when they genuinely help (calculation, fetch, search, workspace files). Do not invent a multi-step project plan unless the user asks for one.
 If the user later wants a structured workflow, say so briefly and keep the current reply useful.
 Respond in the language of the user.
 
 Available tools:
-${toolsMarkdown}${context}`;
+${toolsMarkdown}${context}${files}`;
 }
 
 export function routerSystemPrompt(): string {

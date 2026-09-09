@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   type Budget,
@@ -14,6 +14,7 @@ import { newId, nowIso } from '../lib/ids.js';
 import type { Logger } from '../lib/logger.js';
 import type { ModelProvider } from '../providers/model-provider.js';
 import { type ArtifactPersistence, ArtifactStore } from './artifacts.js';
+import type { ExtractedAttachment } from './attachments.js';
 import type { RunContext } from './engine/context.js';
 import { LoopEngine } from './engine/loop-engine.js';
 import type { EventBus } from './event-bus.js';
@@ -41,6 +42,7 @@ export interface StartRunInput {
   model?: string;
   autoApprove?: boolean;
   history?: string;
+  attachments?: ExtractedAttachment[];
   budget?: Partial<Budget>;
 }
 
@@ -108,11 +110,23 @@ export class RunManager {
 
     const workspaceDir = path.resolve(config.DATA_DIR, 'runs', run.id, 'workspace');
     await mkdir(workspaceDir, { recursive: true });
+    if (input.attachments?.length) {
+      const uploads = path.join(workspaceDir, 'uploads');
+      await mkdir(uploads, { recursive: true });
+      for (const file of input.attachments) {
+        await writeFile(path.join(uploads, file.name), file.text, 'utf8');
+      }
+    }
+
+    let emit: (payload: RunEventPayload) => ReturnType<EventBus['append']> = () => {
+      throw new Error('emit used before init');
+    };
     const artifacts = new ArtifactStore(run.id, path.resolve(config.DATA_DIR, 'runs', run.id), {
       persistence: this.deps.artifactPersistence,
+      onCreate: (artifact) => emit({ type: 'artifact.created', artifact }),
     });
 
-    const emit = (payload: RunEventPayload) => {
+    emit = (payload: RunEventPayload) => {
       const event = bus.append(run.id, payload);
       state.apply(event);
       return event;
@@ -130,6 +144,7 @@ export class RunManager {
       workspaceDir,
       signal: controller.signal,
       history: input.history,
+      attachments: input.attachments,
       autoApprove: input.autoApprove ?? false,
       notes: [],
       emit,

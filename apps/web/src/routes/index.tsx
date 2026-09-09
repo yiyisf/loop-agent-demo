@@ -1,8 +1,9 @@
+import type { AttachmentDraft } from '@loop-agent/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Calculator, FileText, Globe, Route as RouteIcon } from 'lucide-react';
 import { TopBar } from '@/components/layout/top-bar';
-import { Composer } from '@/features/chat/composer';
+import { Composer, type ComposerSend } from '@/features/chat/composer';
 import { api, queryKeys } from '@/lib/api';
 import { useRunStore } from '@/stores/run-store';
 
@@ -39,16 +40,18 @@ function IndexPage() {
   const setPendingMessage = useRunStore((s) => s.setPendingMessage);
 
   const start = useMutation({
-    mutationFn: async (text: string) => {
+    mutationFn: async (payload: { text: string; attachments?: AttachmentDraft[] }) => {
       const thread = await api.createThread();
-      return { thread, text };
+      return { thread, ...payload };
     },
-    onSuccess: ({ thread, text }) => {
-      setPendingMessage({ threadId: thread.id, text });
+    onSuccess: ({ thread, text, attachments }) => {
+      setPendingMessage({ threadId: thread.id, text, attachments });
       void queryClient.invalidateQueries({ queryKey: queryKeys.threads });
       void navigate({ to: '/threads/$threadId', params: { threadId: thread.id } });
     },
   });
+
+  const send = (payload: ComposerSend) => start.mutate(payload);
 
   return (
     <>
@@ -63,7 +66,7 @@ function IndexPage() {
 
         <div className="w-full max-w-2xl">
           <Composer
-            onSend={(text) => start.mutate(text)}
+            onSend={send}
             busy={start.isPending}
             autoFocus
             size="large"
@@ -77,7 +80,7 @@ function IndexPage() {
             <button
               type="button"
               key={s.title}
-              onClick={() => start.mutate(s.text)}
+              onClick={() => start.mutate({ text: s.text })}
               disabled={start.isPending}
               className="rounded-md border bg-card p-3 text-left transition-colors hover:bg-accent/60 disabled:opacity-60"
             >

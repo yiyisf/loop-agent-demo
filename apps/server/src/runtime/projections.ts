@@ -1,5 +1,7 @@
 import {
   type Approval,
+  type Artifact,
+  type Citation,
   addUsage,
   type Plan,
   type Run,
@@ -24,6 +26,8 @@ export class RunState {
   approvals = new Map<string, Approval>();
   questions = new Map<string, UserQuestion>();
   toolCalls = new Map<string, ToolCallRecord>();
+  citations: Citation[] = [];
+  artifacts: Artifact[] = [];
   finalText = '';
   lastSeq = 0;
 
@@ -153,6 +157,18 @@ export class RunState {
         }
         break;
       }
+      case 'citation.added': {
+        if (!this.citations.some((c) => c.id === event.citation.id)) {
+          this.citations.push(event.citation);
+        }
+        break;
+      }
+      case 'artifact.created': {
+        if (!this.artifacts.some((a) => a.id === event.artifact.id)) {
+          this.artifacts.push(event.artifact);
+        }
+        break;
+      }
       case 'final.text_delta': {
         this.finalText += event.delta;
         break;
@@ -182,6 +198,8 @@ export class RunState {
       approvals: [...this.approvals.values()].map((a) => structuredClone(a)),
       questions: [...this.questions.values()].map((q) => structuredClone(q)),
       toolCalls: [...this.toolCalls.values()].map((t) => structuredClone(t)),
+      citations: this.citations.map((c) => structuredClone(c)),
+      artifacts: this.artifacts.map((a) => structuredClone(a)),
       lastSeq: this.lastSeq,
     };
   }

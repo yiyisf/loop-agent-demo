@@ -1,4 +1,5 @@
-import { ArrowDown } from 'lucide-react';
+import type { AttachmentPreview } from '@loop-agent/shared';
+import { ArrowDown, Paperclip } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { AgentUIMessage } from '@/lib/types';
@@ -11,12 +12,36 @@ export function messageText(message: AgentUIMessage): string {
     .join('\n');
 }
 
+function userAttachments(message: AgentUIMessage): AttachmentPreview[] {
+  return message.parts
+    .filter((p): p is Extract<typeof p, { type: 'data-attachment' }> => p.type === 'data-attachment')
+    .map((p) => p.data);
+}
+
 function UserMessage({ message }: { message: AgentUIMessage }) {
   const text = messageText(message);
+  const files = userAttachments(message);
   return (
     <div className="flex justify-end" data-testid="user-message">
-      <div className="max-w-[85%] min-w-0 rounded-md bg-muted px-4 py-2.5 text-sm break-all whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground">
-        {text}
+      <div className="max-w-[85%] min-w-0 space-y-1.5">
+        {files.length > 0 && (
+          <ul className="flex flex-wrap justify-end gap-1">
+            {files.map((f) => (
+              <li
+                key={f.name}
+                className="inline-flex max-w-full items-center gap-1 rounded-md border bg-card px-2 py-0.5 text-xs"
+              >
+                <Paperclip className="size-3 shrink-0 text-muted-foreground" />
+                <span className="truncate">{f.name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {text ? (
+          <div className="rounded-md bg-muted px-4 py-2.5 text-sm break-all whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground">
+            {text}
+          </div>
+        ) : null}
       </div>
     </div>
   );

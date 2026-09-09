@@ -26,7 +26,7 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
     if (pending && pending.threadId === threadId && !sentPending.current) {
       sentPending.current = true;
       setPendingMessage(null);
-      chat.send(pending.text);
+      chat.send({ text: pending.text, attachments: pending.attachments ?? [] });
     }
   }, [pending, threadId, chat, setPendingMessage]);
 

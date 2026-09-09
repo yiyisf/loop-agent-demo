@@ -6,6 +6,7 @@ import {
   StepResultSchema,
 } from '@loop-agent/shared';
 import { hasToolCall, isStepCount, ToolLoopAgent, type ToolSet } from 'ai';
+import { emitToolCitations } from '../citations.js';
 import { executorSystemPrompt } from '../prompts.js';
 import { FINISH_STEP_TOOL } from '../tools/builtin/index.js';
 import type { ToolRuntime } from '../tools/types.js';
@@ -132,6 +133,7 @@ export async function executeStep(
           durationMs: Date.now() - (toolStarts.get(part.toolCallId) ?? Date.now()),
         });
         ctx.emit({ type: 'usage', usage: { ...emptyUsage(), toolCalls: 1 } });
+        emitToolCitations(ctx, part.toolName, part.output);
         break;
       }
       case 'tool-error': {

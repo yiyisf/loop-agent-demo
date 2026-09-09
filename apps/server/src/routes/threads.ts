@@ -1,4 +1,5 @@
 import {
+  dataPartIds,
   RUN_ID_HEADER,
   type RunMode,
   SendMessageRequestSchema,
@@ -10,6 +11,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../app.js';
 import { newId, nowIso } from '../lib/ids.js';
+import { AttachmentError, extractAttachments, toAttachmentPreview } from '../runtime/attachments.js';
 import { fallbackTitle } from '../runtime/title.js';
 import { createRunUIStream, type LoopAgentUIMessage } from '../runtime/ui-stream.js';
 
@@ -66,7 +68,15 @@ export function buildHistory(messages: LoopAgentUIMessage[], maxTurns = 10): str
   for (const m of messages) {
     if (m.role === 'user') {
       const text = messageText(m);
-      if (text) lines.push(`User: ${text.slice(0, 800)}`);
+      const files = m.parts
+        .filter((p) => p.type === 'data-attachment')
+        .map((p) => (p.data as { name?: string }).name)
+        .filter((n): n is string => !!n);
+      const bits = [
+        text ? text.slice(0, 800) : '',
+        files.length ? `[file] ${files.join(', ')}` : '',
+      ].filter(Boolean);
+      if (bits.length) lines.push(`User: ${bits.join(' | ')}`);
       continue;
     }
     if (m.role === 'assistant') {
@@ -144,7 +154,21 @@ export function threadRoutes(ctx: AppContext) {
 
     const parsed = SendMessageRequestSchema.safeParse(await c.req.json().catch(() => ({})));
     if (!parsed.success) throw new HTTPException(400, { message: 'Invalid request body' });
-    const text = extractUserText(parsed.data);
+
+    let attachments;
+    try {
+      attachments = extractAttachments(parsed.data.attachments);
+    } catch (err) {
+      if (err instanceof AttachmentError) {
+        throw new HTTPException(400, { message: err.message });
+      }
+      throw err;
+    }
+
+    let text = extractUserText(parsed.data);
+    if (!text && attachments.length) {
+      text = `请阅读附件：${attachments.map((f) => f.name).join('、')}`;
+    }
     if (!text) throw new HTTPException(400, { message: 'Message text is required' });
 
     if (runManager.activeRunForThread(threadId)) {
@@ -156,7 +180,14 @@ export function threadRoutes(ctx: AppContext) {
       id: newId('msg'),
       role: 'user',
       metadata: { threadId, createdAt: nowIso() },
-      parts: [{ type: 'text', text }],
+      parts: [
+        { type: 'text', text },
+        ...attachments.map((f) => ({
+          type: 'data-attachment' as const,
+          id: dataPartIds.attachment(f.name),
+          data: toAttachmentPreview(f),
+        })),
+      ],
     };
     await stores.threads.appendMessage(threadId, userMessage);
     if (previous.length === 0) {
@@ -170,6 +201,7 @@ export function threadRoutes(ctx: AppContext) {
       model: parsed.data.model,
       autoApprove: parsed.data.toolPolicy?.autoApprove ?? false,
       history: buildHistory(previous),
+      attachments,
     });
 
     return createUIMessageStreamResponse({

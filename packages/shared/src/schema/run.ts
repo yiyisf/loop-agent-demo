@@ -92,6 +92,35 @@ export const ArtifactSchema = z.object({
 });
 export type Artifact = z.infer<typeof ArtifactSchema>;
 
+export const CitationSourceSchema = z.enum(['http_fetch', 'web_search', 'attachment']);
+export type CitationSource = z.infer<typeof CitationSourceSchema>;
+
+export const CitationSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  url: z.string().optional(),
+  source: CitationSourceSchema,
+  excerpt: z.string().optional(),
+});
+export type Citation = z.infer<typeof CitationSchema>;
+
+/** Client-uploaded file. Text types send `text`; PDF sends `dataBase64`. */
+export const AttachmentDraftSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  mime: z.string().min(1).max(120),
+  text: z.string().max(200_000).optional(),
+  dataBase64: z.string().max(600_000).optional(),
+});
+export type AttachmentDraft = z.infer<typeof AttachmentDraftSchema>;
+
+export const AttachmentPreviewSchema = z.object({
+  name: z.string(),
+  mime: z.string(),
+  size: z.number().int().nonnegative(),
+  excerpt: z.string(),
+});
+export type AttachmentPreview = z.infer<typeof AttachmentPreviewSchema>;
+
 export interface ToolCallRecord {
   stepId: string;
   toolCallId: string;
@@ -110,6 +139,8 @@ export interface RunSnapshot {
   approvals: Approval[];
   questions: UserQuestion[];
   toolCalls: ToolCallRecord[];
+  citations: Citation[];
+  artifacts: Artifact[];
   lastSeq: number;
 }
 
@@ -137,6 +168,7 @@ export const QuestionAnswerSchema = z.object({ answer: z.string().min(1) });
 export const SendMessageRequestSchema = z.object({
   messages: z.array(z.unknown()).optional(),
   text: z.string().optional(),
+  attachments: z.array(AttachmentDraftSchema).max(8).optional(),
   mode: RunModeSchema.optional(),
   model: z.string().optional(),
   toolPolicy: z

@@ -7,6 +7,8 @@ import { deriveRunView } from '@/lib/run-view';
 import type { AgentUIMessage } from '@/lib/types';
 import { cn, formatDuration, formatTokens } from '@/lib/utils';
 import { ApprovalCard } from './parts/approval-card';
+import { ArtifactCard } from './parts/artifact-card';
+import { CitationList } from './parts/citation-list';
 import { FinalAnswer } from './parts/final-answer';
 import { PlanCard } from './parts/plan-card';
 import { PlanEditor } from './parts/plan-editor';
@@ -170,6 +172,16 @@ export function AssistantMessage({
                 ) : undefined
               }
             />
+          </div>
+        )}
+
+        {view.citations.length > 0 && <CitationList citations={view.citations} />}
+        {view.artifacts.length > 0 && (
+          <div className="grid gap-1.5">
+            <p className="text-xs text-muted-foreground">产物 {view.artifacts.length}</p>
+            {view.artifacts.map((a) => (
+              <ArtifactCard key={a.id} artifact={a} runId={view.runId} />
+            ))}
           </div>
         )}
 

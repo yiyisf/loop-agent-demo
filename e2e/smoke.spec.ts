@@ -122,6 +122,50 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByRole('button', { name: '重新生成' })).toHaveCount(1);
   });
 
+  test('uploaded markdown is summarized in chat', async ({ page }) => {
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await page.getByLabel('选择要上传的文件').setInputFiles({
+      name: 'notes.md',
+      mimeType: 'text/markdown',
+      buffer: Buffer.from('# 季度目标\n提高续费率到 40%。\n下一阶段做客户回访。\n'),
+    });
+    await expect(page.getByTestId('composer-attachments')).toContainText('notes.md');
+    await composer.fill('总结这份文件的要点');
+    await composer.press('Enter');
+
+    await expect(page.getByTestId('user-message').getByText('notes.md')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/续费率|季度目标/).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('理解任务并拆解要点')).toHaveCount(0);
+  });
+
+  test('fetch with auto-approve shows a clickable source', async ({ page }) => {
+    await page.goto('/');
+    await page.getByLabel('自动批准工具').click();
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('抓取 https://example.com/ 的网页并总结');
+    await composer.press('Enter');
+
+    const sources = page.getByTestId('citation-list');
+    await expect(sources).toBeVisible({ timeout: 45_000 });
+    await sources.getByRole('button').first().click();
+    await expect(page.getByTestId('citation-excerpt')).toBeVisible();
+    await expect(page.getByText(/example\.com|Example Domain/i).first()).toBeVisible();
+  });
+
+  test('workspace write appears as an artifact card in chat', async ({ page }) => {
+    await page.goto('/');
+    const composer = page.getByRole('textbox', { name: '任务输入' });
+    await composer.fill('编写一份 README 并保存到工作区');
+    await composer.press('Enter');
+
+    await expect(page.getByTestId('artifact-card')).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByTestId('artifact-card').getByText('README.md')).toBeVisible();
+    await expect(page.getByRole('link', { name: '下载' })).toBeVisible();
+  });
+
   test('retry after a denied approval starts a new run', async ({ page }) => {
     await page.goto('/');
     const composer = page.getByRole('textbox', { name: '任务输入' });
