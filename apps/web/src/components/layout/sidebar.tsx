@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { Bot, Loader2, Moon, Pencil, Plus, Search, Sun, Trash2, X } from 'lucide-react';
+import { Loader2, Moon, Pencil, Plus, Search, Sun, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { api, queryKeys } from '@/lib/api';
@@ -92,17 +92,14 @@ export function Sidebar() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 px-4 py-4">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Bot className="size-4" />
-        </div>
-        <span className="text-sm font-semibold tracking-tight">Loop Agent</span>
+        <span className="text-sm font-medium tracking-tight">Loop Agent</span>
       </div>
 
       <div className="grid gap-2 px-3">
         <Button asChild variant="outline" className="w-full justify-start">
           <Link to="/" onClick={closeOnNarrow}>
             <Plus />
-            新任务
+            新会话
           </Link>
         </Button>
         <label className="relative block">

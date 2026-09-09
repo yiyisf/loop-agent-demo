@@ -315,7 +315,7 @@ export const defaultMockScript: MockScript = (ctx) => {
         };
       }
       return {
-        text: `这是 **对话模式** 的回复，没有生成工作流计划。\n\n针对「${task.slice(0, 80)}」：可以直接继续提问，或切换到「自动 / 先规划」让我拆成步骤执行。`,
+        text: `这是 **对话模式** 的回复，没有生成工作流计划。\n\n针对「${task.slice(0, 80)}」：可以直接继续提问，或者说「按步骤做」让我拆开执行。`,
         chunkDelayMs: 15,
       };
     }

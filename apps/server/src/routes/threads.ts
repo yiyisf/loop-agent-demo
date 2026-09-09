@@ -42,17 +42,40 @@ function messageText(m: LoopAgentUIMessage): string {
     .trim();
 }
 
-/** Compact conversation history handed to the planner for follow-up turns. */
-export function buildHistory(messages: LoopAgentUIMessage[], maxChars = 4000): string | undefined {
+function assistantHistoryLine(m: LoopAgentUIMessage): string | undefined {
+  const bits: string[] = [];
+  for (const part of m.parts) {
+    if (part.type === 'data-plan') {
+      const plan = (part.data as { plan?: { objective?: string } })?.plan;
+      if (plan?.objective) bits.push(`[plan] ${plan.objective}`);
+    }
+    if (part.type === 'data-tool') {
+      const tool = part.data as { toolName?: string };
+      if (tool.toolName) bits.push(`[tool] ${tool.toolName}`);
+    }
+  }
+  const text = messageText(m);
+  if (text) bits.push(text.slice(0, 800));
+  if (bits.length === 0) return undefined;
+  return `Assistant: ${bits.join(' | ')}`;
+}
+
+/** Recent turns for the router / planner. Keeps plan and tool names, not a raw dump. */
+export function buildHistory(messages: LoopAgentUIMessage[], maxTurns = 10): string | undefined {
   const lines: string[] = [];
   for (const m of messages) {
-    const text = messageText(m);
-    if (!text) continue;
-    lines.push(`${m.role === 'user' ? 'User' : 'Assistant'}: ${text.slice(0, 1500)}`);
+    if (m.role === 'user') {
+      const text = messageText(m);
+      if (text) lines.push(`User: ${text.slice(0, 800)}`);
+      continue;
+    }
+    if (m.role === 'assistant') {
+      const line = assistantHistoryLine(m);
+      if (line) lines.push(line);
+    }
   }
-  if (lines.length === 0) return undefined;
-  const joined = lines.join('\n\n');
-  return joined.length > maxChars ? joined.slice(joined.length - maxChars) : joined;
+  const recent = lines.slice(-maxTurns);
+  return recent.length > 0 ? recent.join('\n') : undefined;
 }
 
 export function threadRoutes(ctx: AppContext) {

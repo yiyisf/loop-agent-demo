@@ -139,9 +139,10 @@ ${toolsMarkdown}${context}`;
 }
 
 export function routerSystemPrompt(): string {
-  return `Decide whether this user message should be handled as a short conversation (chat) or as a multi-step workflow (workflow).
-chat: greetings, single questions, one-shot tool use, clarifications.
-workflow: research, comparison, multi-step plans, documents, migrations, anything that needs a DAG of steps.
+  return `Decide how to handle this user turn. Default to conversation.
+chat: greetings, explanations, rewrites, follow-ups, single questions, one-shot tool use (one calculation or one fetch).
+workflow: comparison, research, migrations, multi-deliverable docs, or the user asked to work in steps.
+confirmPlan=true only if the user asked to see or confirm the plan before execution.
 Return JSON only.`;
 }
 

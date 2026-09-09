@@ -34,8 +34,6 @@ export function Composer({
 }: ComposerProps) {
   const [value, setValue] = useState('');
   const ref = useRef<HTMLTextAreaElement>(null);
-  const mode = useRunStore((s) => s.mode);
-  const setMode = useRunStore((s) => s.setMode);
   const model = useRunStore((s) => s.model);
   const setModel = useRunStore((s) => s.setModel);
   const autoApprove = useRunStore((s) => s.autoApprove);
@@ -70,7 +68,7 @@ export function Composer({
   return (
     <div
       className={cn(
-        'rounded-2xl border bg-card shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-2 focus-within:ring-ring/30',
+        'rounded-md border bg-card transition-shadow focus-within:ring-1 focus-within:ring-ring/40',
         className,
       )}
     >
@@ -92,36 +90,6 @@ export function Composer({
         )}
       />
       <div className="flex items-center gap-3 px-3 pb-2.5">
-        <fieldset className="flex rounded-md border bg-muted/40 p-0.5">
-          <legend className="sr-only">会话模式</legend>
-          {(
-            [
-              ['chat', '对话', '普通沟通，可调用工具，不强制生成工作流'],
-              ['auto', '自动', '根据内容决定先对话还是规划执行'],
-              ['plan_first', '先规划', '先展示计划，确认后再执行'],
-            ] as const
-          ).map(([value, label, tip]) => (
-            <Tooltip key={value}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={label}
-                  aria-pressed={mode === value}
-                  onClick={() => setMode(value)}
-                  className={cn(
-                    'rounded px-1.5 py-0.5 text-xs transition-colors',
-                    mode === value
-                      ? 'bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {label}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{tip}</TooltipContent>
-            </Tooltip>
-          ))}
-        </fieldset>
         <Tooltip>
           <TooltipTrigger asChild>
             <label

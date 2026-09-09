@@ -1,4 +1,4 @@
-import { AlertTriangle, Bot, ChevronRight, RotateCcw, Wrench } from 'lucide-react';
+import { AlertTriangle, ChevronRight, RotateCcw, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -49,16 +49,14 @@ export function AssistantMessage({
 
   return (
     <div className="flex gap-3">
-      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Bot className="size-4" />
+      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-medium text-muted-foreground">
+        助
       </div>
       <div className="min-w-0 flex-1 space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <StatusPill status={view.status} reason={view.statusReason} />
           {view.status === 'planning' && <span>正在分析任务并制定计划…</span>}
-          {view.status === 'executing' && !view.plan && (
-            <span>{view.mode === 'chat' ? '对话中…' : '正在回复…'}</span>
-          )}
+          {view.status === 'executing' && !view.plan && <span>正在回复…</span>}
           {view.usage && view.usage.totalTokens > 0 && (
             <span title="Token 用量">{formatTokens(view.usage.totalTokens)} tokens</span>
           )}
@@ -66,12 +64,12 @@ export function AssistantMessage({
         </div>
 
         {!view.plan && live && view.status === 'planning' && (
-          <div className="flex items-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm text-muted-foreground">
-            <Spinner /> 规划中，请稍候…
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner /> 正在整理步骤…
           </div>
         )}
         {!view.plan && live && view.status === 'executing' && !view.finalText && (
-          <div className="flex items-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner /> 正在回复…
           </div>
         )}
@@ -154,10 +152,10 @@ export function AssistantMessage({
         )}
 
         {(view.finalText || view.status === 'finalizing') && (
-          <div className="rounded-xl border bg-card px-4 py-3">
+          <div className={view.plan ? 'rounded-md border bg-card px-4 py-3' : undefined}>
             {!view.finalText && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Spinner /> 正在整理最终回答…
+                <Spinner /> 正在整理回答…
               </div>
             )}
             <FinalAnswer

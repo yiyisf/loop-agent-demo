@@ -49,32 +49,29 @@ export class LoopEngine {
   async run(ctx: RunContext): Promise<void> {
     const guard = new BudgetGuard(ctx.budget);
     try {
-      const route = await resolveExecutionRoute(ctx);
-      if (route === 'chat') {
+      const decision = await resolveExecutionRoute(ctx);
+      if (decision.route === 'chat') {
         ctx.emit({
           type: 'log',
           level: 'info',
-          message:
-            ctx.run.mode === 'chat'
-              ? '对话模式：直接沟通并可调用工具，不强制生成工作流。'
-              : '自动判断为普通对话（未生成工作流）。',
+          message: `按对话处理（${decision.reason}）。`,
         });
         await runChatTurn(ctx);
         return;
       }
-      if (ctx.run.mode === 'auto') {
-        ctx.emit({
-          type: 'log',
-          level: 'info',
-          message: '自动判断为多步骤任务，开始规划工作流。',
-        });
-      }
+      ctx.emit({
+        type: 'log',
+        level: 'info',
+        message: decision.confirmPlan
+          ? `需要多步协作，先给出计划供确认（${decision.reason}）。`
+          : `需要多步协作，开始规划并执行（${decision.reason}）。`,
+      });
 
       ctx.emit({ type: 'run.status', status: 'planning' });
       const plan = await createPlan(ctx);
       ctx.emit({ type: 'plan.created', plan });
 
-      if (ctx.run.mode === 'plan_first') {
+      if (decision.confirmPlan) {
         const proceed = await this.confirmPlan(ctx);
         if (!proceed) return;
       }

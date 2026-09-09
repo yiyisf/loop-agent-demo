@@ -4,12 +4,13 @@ test.describe('loop-agent smoke', () => {
   test('runs a task end to end and survives a reload', async ({ page }) => {
     await page.goto('/');
     const composer = page.getByRole('textbox', { name: '任务输入' });
-    await composer.fill('计算 (12+30)*2 并说明过程');
+    await composer.fill('对比 Zustand、Jotai 与 Redux Toolkit 并给出选型建议');
     await composer.press('Enter');
 
     await expect(page).toHaveURL(/\/threads\/thr_/);
-    // Exact user bubble — the plan card also contains the task as "完成任务：…".
-    await expect(page.getByTestId('user-message')).toHaveText('计算 (12+30)*2 并说明过程');
+    await expect(page.getByTestId('user-message')).toHaveText(
+      '对比 Zustand、Jotai 与 Redux Toolkit 并给出选型建议',
+    );
     // Plan card shows up with the mock plan's steps.
     await expect(page.getByText('理解任务并拆解要点').first()).toBeVisible();
 
@@ -26,7 +27,10 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByText('今天')).toBeVisible();
     // CI retries reuse the in-memory store, so earlier attempts may leave extra threads.
     await expect(
-      page.getByRole('navigation').getByRole('link', { name: /计算/ }).first(),
+      page
+        .getByRole('navigation')
+        .getByRole('link', { name: /对比|Zustand|选型/ })
+        .first(),
     ).toBeVisible();
 
     // Cmd/Ctrl+K jumps back to the new-task page and focuses the composer.
@@ -50,22 +54,22 @@ test.describe('loop-agent smoke', () => {
     await expect(page.getByText('已拒绝')).toBeVisible();
   });
 
-  test('chat mode replies without a workflow plan', async ({ page }) => {
+  test('short conversation does not create a workflow plan', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: '对话' }).click();
     const composer = page.getByRole('textbox', { name: '任务输入' });
     await composer.fill('你好');
     await composer.press('Enter');
 
     await expect(page.getByText('对话模式')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('理解任务并拆解要点')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '对话' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '先规划' })).toHaveCount(0);
   });
 
   test('expanded plan wraps long step details instead of one truncated line', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: '先规划' }).click();
     const composer = page.getByRole('textbox', { name: '任务输入' });
-    await composer.fill('整理一份周报模板');
+    await composer.fill('先列出计划等我确认再执行：整理一份周报模板');
     await composer.press('Enter');
 
     await expect(page.getByText('确认计划', { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -88,9 +92,8 @@ test.describe('loop-agent smoke', () => {
 
   test('plan_first lets the user edit the plan before execution', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: '先规划' }).click();
     const composer = page.getByRole('textbox', { name: '任务输入' });
-    await composer.fill('整理一份周报模板');
+    await composer.fill('先列出计划等我确认再执行：整理一份周报模板');
     await composer.press('Enter');
 
     await expect(page.getByText('确认计划', { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -108,7 +111,7 @@ test.describe('loop-agent smoke', () => {
     await page.goto('/');
     await expect(page.getByRole('button', { name: /规划方案/ })).toBeVisible();
     const composer = page.getByRole('textbox', { name: '任务输入' });
-    await composer.fill('计算 (12+30)*2 并说明过程');
+    await composer.fill('对比 Zustand、Jotai 与 Redux Toolkit 并给出选型建议');
     await composer.press('Enter');
     await expect(page.getByRole('heading', { name: '结论' })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText('已完成').first()).toBeVisible();

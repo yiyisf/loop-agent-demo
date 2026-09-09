@@ -105,11 +105,11 @@ export function ThreadChat({ threadId, detail }: { threadId: string; detail: Thr
             onSend={chat.send}
             onStop={stop}
             busy={chat.isBusy}
-            placeholder={chat.isBusy ? '运行中…（Esc 停止）' : '继续提问或下达新任务'}
+            placeholder={chat.isBusy ? '运行中…（Esc 停止）' : '继续说，或描述下一件要做的事'}
           />
           <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
             Agent 可能出错，请核实关键结论。
-            <kbd className="ml-2 rounded border px-1 font-mono text-[10px]">⌘/Ctrl K</kbd> 新任务
+            <kbd className="ml-2 rounded border px-1 font-mono text-[10px]">⌘/Ctrl K</kbd> 新会话
           </p>
         </div>
       </div>

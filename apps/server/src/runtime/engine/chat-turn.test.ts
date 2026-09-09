@@ -12,7 +12,7 @@ describe('chat turn', () => {
     const h = await createTestHarness();
     cleanup = h.cleanup;
 
-    const { runId, res } = await h.startRun('你好', { mode: 'chat' });
+    const { runId, res } = await h.startRun('你好');
     await res.text();
     await h.collectEvents(runId);
 

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Calculator, FileText, Globe, Route as RouteIcon, Sparkles } from 'lucide-react';
+import { Calculator, FileText, Globe, Route as RouteIcon } from 'lucide-react';
 import { TopBar } from '@/components/layout/top-bar';
 import { Composer } from '@/features/chat/composer';
 import { api, queryKeys } from '@/lib/api';
@@ -52,15 +52,12 @@ function IndexPage() {
 
   return (
     <>
-      <TopBar title="新任务" />
+      <TopBar title="新会话" />
       <div className="flex flex-1 flex-col items-center justify-center gap-8 overflow-y-auto p-6">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Sparkles className="size-6" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">今天想完成什么任务？</h1>
+          <h1 className="text-xl font-medium tracking-tight">写消息，或描述要做的事</h1>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            可以先普通对话并调用工具；需要时再规划多步骤工作流，或让 Agent 根据内容自动决定。
+            普通问答会直接回复；需要多步协作时会自动列出步骤并执行。
           </p>
         </div>
 
@@ -70,7 +67,7 @@ function IndexPage() {
             busy={start.isPending}
             autoFocus
             size="large"
-            placeholder="例如：调研三个方案并给出选型建议…"
+            placeholder="输入消息…"
           />
           {start.error && <p className="mt-2 text-xs text-destructive">{start.error.message}</p>}
         </div>
@@ -82,7 +79,7 @@ function IndexPage() {
               key={s.title}
               onClick={() => start.mutate(s.text)}
               disabled={start.isPending}
-              className="rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent/60 disabled:opacity-60"
+              className="rounded-md border bg-card p-3 text-left transition-colors hover:bg-accent/60 disabled:opacity-60"
             >
               <s.icon className="mb-2 size-4 text-muted-foreground" />
               <p className="text-sm font-medium">{s.title}</p>

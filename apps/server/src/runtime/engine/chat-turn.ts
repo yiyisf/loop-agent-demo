@@ -56,6 +56,9 @@ export async function runChatTurn(ctx: RunContext): Promise<void> {
         answer += part.text;
         ctx.emit({ type: 'final.text_delta', delta: part.text });
         break;
+      case 'reasoning-delta':
+        ctx.emit({ type: 'step.reasoning_delta', stepId: CHAT_STEP_ID, delta: part.text });
+        break;
       case 'tool-call':
         toolStarts.set(part.toolCallId, Date.now());
         ctx.emit({

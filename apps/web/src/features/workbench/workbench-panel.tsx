@@ -49,9 +49,9 @@ export function WorkbenchPanel() {
       ) : !view.plan ? (
         <div className="min-h-0 flex-1 overflow-y-auto p-3 scrollbar-thin">
           <p className="mb-3 text-xs text-muted-foreground">
-            {view.mode === 'chat' || view.status === 'executing'
-              ? '当前是普通对话，未生成工作流。工具调用会出现在下方。'
-              : '运行开始后，这里会显示步骤详情、工具调用与用量。'}
+            {view.plan
+              ? '运行开始后，这里会显示步骤详情、工具调用与用量。'
+              : '这一轮是对话，没有步骤图。用过的工具会列在下面。'}
           </p>
           {view.toolCalls.length > 0 ? (
             <ul className="grid gap-2">
