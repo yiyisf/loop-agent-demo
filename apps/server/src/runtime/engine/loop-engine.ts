@@ -11,6 +11,7 @@ import {
 } from '@loop-agent/shared';
 import { nowIso } from '../../lib/ids.js';
 import { BudgetGuard } from './budget.js';
+import { runChatTurn } from './chat-turn.js';
 import {
   BudgetExceededError,
   PlanningError,
@@ -23,6 +24,7 @@ import { finalize } from './finalizer.js';
 import { askUser, awaitPlanConfirmation } from './hitl.js';
 import { createPlan, draftToStep } from './planner.js';
 import { reflect } from './reflector.js';
+import { resolveExecutionRoute } from './route.js';
 
 export interface LoopEngineOptions {
   /**
@@ -47,6 +49,27 @@ export class LoopEngine {
   async run(ctx: RunContext): Promise<void> {
     const guard = new BudgetGuard(ctx.budget);
     try {
+      const route = await resolveExecutionRoute(ctx);
+      if (route === 'chat') {
+        ctx.emit({
+          type: 'log',
+          level: 'info',
+          message:
+            ctx.run.mode === 'chat'
+              ? '对话模式：直接沟通并可调用工具，不强制生成工作流。'
+              : '自动判断为普通对话（未生成工作流）。',
+        });
+        await runChatTurn(ctx);
+        return;
+      }
+      if (ctx.run.mode === 'auto') {
+        ctx.emit({
+          type: 'log',
+          level: 'info',
+          message: '自动判断为多步骤任务，开始规划工作流。',
+        });
+      }
+
       ctx.emit({ type: 'run.status', status: 'planning' });
       const plan = await createPlan(ctx);
       ctx.emit({ type: 'plan.created', plan });

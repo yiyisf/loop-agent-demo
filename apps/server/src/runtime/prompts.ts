@@ -127,6 +127,24 @@ Just finished step "${input.step.id}" with status ${input.result.status}:
 ${truncate(input.result.summary, 1500)}${notes}`;
 }
 
+export function chatSystemPrompt(toolsMarkdown: string, history?: string): string {
+  const context = history ? `\n\n## Earlier conversation\n${history}` : '';
+  return `You are a helpful assistant in a conversation. Answer the user directly.
+Use tools when they genuinely help (calculation, fetch, search, workspace files). Do not invent a multi-step project plan unless the user asks for one.
+If the user later wants a structured workflow, say so briefly and keep the current reply useful.
+Respond in the language of the user.
+
+Available tools:
+${toolsMarkdown}${context}`;
+}
+
+export function routerSystemPrompt(): string {
+  return `Decide whether this user message should be handled as a short conversation (chat) or as a multi-step workflow (workflow).
+chat: greetings, single questions, one-shot tool use, clarifications.
+workflow: research, comparison, multi-step plans, documents, migrations, anything that needs a DAG of steps.
+Return JSON only.`;
+}
+
 export function finalizerSystemPrompt(): string {
   return `You are the Finalizer of an autonomous agent. Write the final answer for the user based on the completed plan.
 

@@ -3,6 +3,7 @@ import type {
   LoopAgentDataParts,
   Plan,
   PlanDiff,
+  RunMode,
   RunStatus,
   Step,
   ToolCallRecord,
@@ -29,6 +30,7 @@ export interface RunView {
   questions: UserQuestion[];
   usage?: Usage;
   model?: string;
+  mode?: RunMode;
   finalText: string;
   isTerminal: boolean;
 }
@@ -56,6 +58,7 @@ export function deriveRunView(message: AgentUIMessage | undefined): RunView {
         view.startedAt = d.startedAt;
         view.endedAt = d.endedAt;
         view.model = d.model;
+        view.mode = d.mode;
         break;
       }
       case 'data-plan': {
@@ -90,7 +93,9 @@ export function deriveRunView(message: AgentUIMessage | undefined): RunView {
 
   // Preserve plan ordering; fall back to arrival order for steps without a plan.
   const order = view.plan?.steps.map((s) => s.id) ?? [...stepMap.keys()];
-  view.steps = order.map((id) => stepMap.get(id) ?? view.plan!.steps.find((s) => s.id === id)!);
+  view.steps = order
+    .map((id) => stepMap.get(id) ?? view.plan?.steps.find((s) => s.id === id))
+    .filter((s): s is Step => !!s);
   view.isTerminal = view.status ? TERMINAL_RUN_STATUSES.has(view.status) : false;
   if (!view.runId) view.runId = message.metadata?.runId;
   if (!view.model) view.model = message.metadata?.model;

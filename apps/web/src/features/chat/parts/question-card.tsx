@@ -52,7 +52,11 @@ export function QuestionCard({ question, interactive }: QuestionCardProps) {
         />
         <span className="font-medium">Agent 提问</span>
         <span className="text-xs text-muted-foreground">
-          {question.stepId === 'reflector' ? '来自反思' : `步骤 ${question.stepId}`}
+          {question.stepId === 'reflector'
+            ? '来自反思'
+            : question.stepId === 'chat'
+              ? '对话'
+              : `步骤 ${question.stepId}`}
         </span>
         <span className="ml-auto">
           {pending ? (
@@ -63,7 +67,9 @@ export function QuestionCard({ question, interactive }: QuestionCardProps) {
         </span>
       </div>
       <div className="grid gap-2.5 border-t px-3 py-2.5">
-        <p className="whitespace-pre-wrap">{question.question}</p>
+        <p className="min-w-0 break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
+          {question.question}
+        </p>
         {!pending && (
           <div className="flex justify-end">
             <span className="rounded-2xl rounded-br-md bg-primary px-3 py-1.5 text-xs text-primary-foreground">

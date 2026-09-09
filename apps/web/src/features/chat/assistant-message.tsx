@@ -56,15 +56,23 @@ export function AssistantMessage({
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <StatusPill status={view.status} reason={view.statusReason} />
           {view.status === 'planning' && <span>正在分析任务并制定计划…</span>}
+          {view.status === 'executing' && !view.plan && (
+            <span>{view.mode === 'chat' ? '对话中…' : '正在回复…'}</span>
+          )}
           {view.usage && view.usage.totalTokens > 0 && (
             <span title="Token 用量">{formatTokens(view.usage.totalTokens)} tokens</span>
           )}
           {duration && <span>{duration}</span>}
         </div>
 
-        {!view.plan && live && (
+        {!view.plan && live && view.status === 'planning' && (
           <div className="flex items-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm text-muted-foreground">
             <Spinner /> 规划中，请稍候…
+          </div>
+        )}
+        {!view.plan && live && view.status === 'executing' && !view.finalText && (
+          <div className="flex items-center gap-2 rounded-xl border border-dashed px-3 py-3 text-sm text-muted-foreground">
+            <Spinner /> 正在回复…
           </div>
         )}
 
@@ -154,7 +162,7 @@ export function AssistantMessage({
             )}
             <FinalAnswer
               text={view.finalText}
-              streaming={live && view.status === 'finalizing'}
+              streaming={live && (view.status === 'finalizing' || view.status === 'executing')}
               actions={
                 onRerun && view.status === 'succeeded' ? (
                   <Button type="button" variant="ghost" size="sm" onClick={onRerun}>
@@ -171,7 +179,9 @@ export function AssistantMessage({
           (view.error || view.statusReason) && (
             <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <span className="min-w-0 flex-1">{view.error ?? view.statusReason}</span>
+              <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
+                {view.error ?? view.statusReason}
+              </span>
               {onRerun && (
                 <Button
                   type="button"

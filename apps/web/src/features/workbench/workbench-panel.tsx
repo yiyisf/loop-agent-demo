@@ -42,9 +42,31 @@ export function WorkbenchPanel() {
         </Button>
       </div>
 
-      {!view?.plan ? (
+      {!view ? (
         <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
           运行开始后，这里会显示步骤详情、工具调用与用量。
+        </div>
+      ) : !view.plan ? (
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 scrollbar-thin">
+          <p className="mb-3 text-xs text-muted-foreground">
+            {view.mode === 'chat' || view.status === 'executing'
+              ? '当前是普通对话，未生成工作流。工具调用会出现在下方。'
+              : '运行开始后，这里会显示步骤详情、工具调用与用量。'}
+          </p>
+          {view.toolCalls.length > 0 ? (
+            <ul className="grid gap-2">
+              {view.toolCalls.map((t) => (
+                <li key={t.toolCallId} className="rounded-lg border px-2.5 py-2 text-xs">
+                  <div className="font-medium">{t.toolName}</div>
+                  <div className="mt-1 break-all text-muted-foreground">
+                    {t.state === 'done' ? '已完成' : '进行中'}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-center text-sm text-muted-foreground">暂无工具调用</p>
+          )}
         </div>
       ) : (
         <Tabs defaultValue="plan" className="min-h-0 flex-1 gap-0">
@@ -77,7 +99,7 @@ export function WorkbenchPanel() {
               steps={view.steps}
               selectedStepId={selected?.id}
               onSelect={selectStep}
-              className="h-72 border-b"
+              className="h-96 min-h-[22rem] border-b"
             />
             {selected ? (
               <StepDetail

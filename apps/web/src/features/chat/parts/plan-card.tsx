@@ -17,6 +17,24 @@ export interface PlanCardProps {
   defaultOpen?: boolean;
 }
 
+const wrapText = 'whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]';
+
+function StepDetailText({
+  children,
+  className,
+  testId,
+}: {
+  children: string;
+  className?: string;
+  testId?: string;
+}) {
+  return (
+    <span data-testid={testId} className={cn('block text-xs', wrapText, className)}>
+      {children}
+    </span>
+  );
+}
+
 function stepDuration(step: Step): string | null {
   if (!step.startedAt) return null;
   const end = step.endedAt ? new Date(step.endedAt).getTime() : Date.now();
@@ -44,7 +62,7 @@ export function PlanCard({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="rounded-xl border bg-card">
+      <div className="min-w-0 rounded-xl border bg-card">
         <CollapsibleTrigger asChild>
           <button
             type="button"
@@ -80,14 +98,19 @@ export function PlanCard({
         </div>
 
         <CollapsibleContent>
-          <div className="px-3 pt-2 pb-3">
-            <p className="mb-2 text-xs text-muted-foreground">{plan.objective}</p>
+          <div className="min-w-0 px-3 pt-2 pb-3">
+            <p className={cn('mb-2 text-xs text-muted-foreground', wrapText)}>{plan.objective}</p>
             {reason && (
-              <p className="mb-2 rounded-md bg-warning/10 px-2 py-1 text-xs text-warning">
+              <p
+                className={cn(
+                  'mb-2 rounded-md bg-warning/10 px-2 py-1 text-xs text-warning',
+                  wrapText,
+                )}
+              >
                 调整原因：{reason}
               </p>
             )}
-            <ol className="grid gap-1.5">
+            <ol className="grid min-w-0 gap-1.5">
               {steps.map((step, i) => {
                 const changed = diff?.added.includes(step.id)
                   ? 'added'
@@ -97,7 +120,7 @@ export function PlanCard({
                 const tools = toolsByStep.get(step.id) ?? 0;
                 const dur = stepDuration(step);
                 return (
-                  <li key={step.id}>
+                  <li key={step.id} className="min-w-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -105,29 +128,46 @@ export function PlanCard({
                         setWorkbenchOpen(true);
                       }}
                       className={cn(
-                        'flex w-full items-start gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-colors hover:bg-accent/50',
+                        'flex w-full min-w-0 items-start gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-colors hover:bg-accent/50',
                         stepStatusRing(step.status),
                         selectedStepId === step.id && 'ring-2 ring-ring/40',
                         changed === 'added' && 'bg-success/5 border-success/40',
                         changed === 'updated' && 'bg-warning/5 border-warning/40',
                       )}
                     >
-                      <span className="mt-0.5 w-4 text-right font-mono text-xs text-muted-foreground">
+                      <span className="mt-0.5 w-4 shrink-0 text-right font-mono text-xs text-muted-foreground">
                         {i + 1}
                       </span>
-                      <StepStatusIcon status={step.status} className="mt-0.5" />
-                      <span className="min-w-0 flex-1">
+                      <StepStatusIcon status={step.status} className="mt-0.5 shrink-0" />
+                      <span className="min-w-0 flex-1 space-y-1">
                         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                          <span className="font-medium">{step.title}</span>
+                          <span className={cn('font-medium', wrapText)}>{step.title}</span>
                           {changed === 'added' && <Badge variant="success">新增</Badge>}
                           {changed === 'updated' && <Badge variant="warning">修改</Badge>}
                           {step.attempt > 1 && (
                             <Badge variant="outline">第 {step.attempt} 次</Badge>
                           )}
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {step.result?.summary ?? step.error ?? step.goal}
-                        </span>
+                        <StepDetailText testId="plan-step-goal" className="text-muted-foreground">
+                          {step.goal}
+                        </StepDetailText>
+                        {step.acceptance ? (
+                          <StepDetailText
+                            testId="plan-step-acceptance"
+                            className="text-[11px] text-muted-foreground/80"
+                          >
+                            {`验收：${step.acceptance}`}
+                          </StepDetailText>
+                        ) : null}
+                        {step.result?.summary ? (
+                          <StepDetailText testId="plan-step-result" className="text-foreground/80">
+                            {step.result.summary}
+                          </StepDetailText>
+                        ) : step.error ? (
+                          <StepDetailText testId="plan-step-error" className="text-destructive">
+                            {step.error}
+                          </StepDetailText>
+                        ) : null}
                         {step.dependsOn.length > 0 && (
                           <span className="block text-[11px] text-muted-foreground/70">
                             依赖：{step.dependsOn.join(', ')}

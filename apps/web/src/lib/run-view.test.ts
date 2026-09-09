@@ -74,6 +74,32 @@ describe('deriveRunView', () => {
     expect(view.usage?.totalTokens).toBe(3);
   });
 
+  it('keeps an empty step list for chat runs without a plan', () => {
+    const message: AgentUIMessage = {
+      id: 'm1',
+      role: 'assistant',
+      parts: [
+        {
+          type: 'data-run',
+          id: 'run',
+          data: {
+            runId: 'run_c',
+            threadId: 't',
+            status: 'succeeded',
+            seq: 2,
+            mode: 'chat',
+          },
+        },
+        { type: 'text', text: 'hello', state: 'done' },
+      ],
+    };
+    const view = deriveRunView(message);
+    expect(view.mode).toBe('chat');
+    expect(view.plan).toBeUndefined();
+    expect(view.steps).toEqual([]);
+    expect(view.finalText).toBe('hello');
+  });
+
   it('falls back to plan steps when no step part arrived yet', () => {
     const message: AgentUIMessage = {
       id: 'm1',

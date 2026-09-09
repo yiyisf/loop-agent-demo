@@ -1,6 +1,6 @@
 import type { Usage } from './schema/common.js';
 import type { Plan, PlanDiff, Step } from './schema/plan.js';
-import type { Approval, RunStatus, UserQuestion } from './schema/run.js';
+import type { Approval, RunMode, RunStatus, UserQuestion } from './schema/run.js';
 
 /**
  * Custom `data-*` parts streamed to the UI (AI SDK UI Message Stream).
@@ -18,6 +18,7 @@ export type LoopAgentDataParts = {
     endedAt?: string;
     error?: string;
     model?: string;
+    mode?: RunMode;
   };
   /** Current plan; single part with id "plan". */
   plan: {

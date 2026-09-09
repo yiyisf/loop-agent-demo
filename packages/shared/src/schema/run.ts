@@ -23,7 +23,7 @@ export const TERMINAL_RUN_STATUSES: ReadonlySet<RunStatus> = new Set([
   'cancelled',
 ]);
 
-export const RunModeSchema = z.enum(['auto', 'plan_first']);
+export const RunModeSchema = z.enum(['auto', 'chat', 'plan_first']);
 export type RunMode = z.infer<typeof RunModeSchema>;
 
 export const RunSchema = z.object({
