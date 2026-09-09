@@ -11,7 +11,11 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from '../app.js';
 import { newId, nowIso } from '../lib/ids.js';
-import { AttachmentError, extractAttachments, toAttachmentPreview } from '../runtime/attachments.js';
+import {
+  AttachmentError,
+  extractAttachments,
+  toAttachmentPreview,
+} from '../runtime/attachments.js';
 import { fallbackTitle } from '../runtime/title.js';
 import { createRunUIStream, type LoopAgentUIMessage } from '../runtime/ui-stream.js';
 
@@ -155,7 +159,7 @@ export function threadRoutes(ctx: AppContext) {
     const parsed = SendMessageRequestSchema.safeParse(await c.req.json().catch(() => ({})));
     if (!parsed.success) throw new HTTPException(400, { message: 'Invalid request body' });
 
-    let attachments;
+    let attachments: ReturnType<typeof extractAttachments> = [];
     try {
       attachments = extractAttachments(parsed.data.attachments);
     } catch (err) {

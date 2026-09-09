@@ -100,7 +100,7 @@ export function Composer({
   id = 'composer-input',
 }: ComposerProps) {
   const [value, setValue] = useState('');
-  const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
+  const [attachments, setAttachments] = useState<Array<AttachmentDraft & { id: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -141,7 +141,7 @@ export function Composer({
         setError(`「${file.name}」超过 ${Math.round(MAX_BYTES / 1024)}KB 上限`);
         continue;
       }
-      next.push(await fileToDraft(file));
+      next.push({ id: crypto.randomUUID(), ...(await fileToDraft(file)) });
     }
     setAttachments(next);
     if (fileRef.current) fileRef.current.value = '';
@@ -156,7 +156,10 @@ export function Composer({
 
   const submit = () => {
     if (!canSend) return;
-    onSend({ text: value, attachments });
+    onSend({
+      text: value,
+      attachments: attachments.map(({ id: _id, ...draft }) => draft),
+    });
     setValue('');
     setAttachments([]);
     setError(null);
@@ -184,9 +187,10 @@ export function Composer({
   };
 
   return (
-    <div
+    <fieldset
+      aria-label="消息输入与附件"
       className={cn(
-        'rounded-md border bg-card transition-shadow focus-within:ring-1 focus-within:ring-ring/40',
+        'min-w-0 rounded-md border bg-card p-0 transition-shadow focus-within:ring-1 focus-within:ring-ring/40',
         dragging && 'border-foreground/40 ring-1 ring-ring/40',
         className,
       )}
@@ -207,7 +211,7 @@ export function Composer({
         <ul className="flex flex-wrap gap-1.5 px-3 pt-2.5" data-testid="composer-attachments">
           {attachments.map((f, i) => (
             <li
-              key={`${f.name}-${i}`}
+              key={f.id}
               className="flex max-w-full items-center gap-1 rounded-md border bg-muted/60 px-2 py-0.5 text-xs"
             >
               <span className="truncate">{f.name}</span>
@@ -325,12 +329,18 @@ export function Composer({
               <Square className="size-3.5 fill-current" />
             </Button>
           ) : (
-            <Button type="button" size="icon-sm" aria-label="发送" onClick={submit} disabled={!canSend}>
+            <Button
+              type="button"
+              size="icon-sm"
+              aria-label="发送"
+              onClick={submit}
+              disabled={!canSend}
+            >
               <ArrowUp />
             </Button>
           )}
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 }

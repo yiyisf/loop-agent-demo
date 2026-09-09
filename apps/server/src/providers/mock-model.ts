@@ -395,9 +395,7 @@ function taskFromPrompt(prompt: string): string {
 
 function attachmentBlocks(text: string): Array<{ name: string; body: string }> {
   const blocks: Array<{ name: string; body: string }> = [];
-  const re = /###\s+(.+)\n([\s\S]*?)(?=\n###\s+|\n##\s+[A-Z]|$)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) {
+  for (const m of text.matchAll(/###\s+(.+)\n([\s\S]*?)(?=\n###\s+|\n##\s+[A-Z]|$)/g)) {
     blocks.push({ name: m[1]?.trim() ?? 'file', body: (m[2] ?? '').trim() });
   }
   return blocks;

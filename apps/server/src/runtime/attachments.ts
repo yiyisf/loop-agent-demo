@@ -52,16 +52,20 @@ export function unescapePdfString(raw: string): string {
 export function extractPdfText(data: Uint8Array): string {
   const src = Buffer.from(data).toString('latin1');
   const parts: string[] = [];
-  const tj = /\(((?:\\.|[^\\)])*)\)\s*Tj/g;
-  let m: RegExpExecArray | null;
-  while ((m = tj.exec(src))) parts.push(unescapePdfString(m[1] ?? ''));
-  const arr = /\[(.*?)\]\s*TJ/gs;
-  while ((m = arr.exec(src))) {
-    const inner = m[1] ?? '';
-    const strs = inner.matchAll(/\(((?:\\.|[^\\)])*)\)/g);
-    for (const s of strs) parts.push(unescapePdfString(s[1] ?? ''));
+  for (const m of src.matchAll(/\(((?:\\.|[^\\)])*)\)\s*Tj/g)) {
+    parts.push(unescapePdfString(m[1] ?? ''));
   }
-  return parts.join(' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  for (const m of src.matchAll(/\[(.*?)\]\s*TJ/gs)) {
+    const inner = m[1] ?? '';
+    for (const s of inner.matchAll(/\(((?:\\.|[^\\)])*)\)/g)) {
+      parts.push(unescapePdfString(s[1] ?? ''));
+    }
+  }
+  return parts
+    .join(' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function decodeBase64(dataBase64: string): Buffer {
@@ -87,7 +91,9 @@ export function extractOne(draft: AttachmentDraft): ExtractedAttachment {
     const buf = decodeBase64(draft.dataBase64);
     size = buf.byteLength;
     if (size > ATTACHMENT_MAX_BYTES) {
-      throw new AttachmentError(`「${name}」超过 ${Math.round(ATTACHMENT_MAX_BYTES / 1024)}KB 上限`);
+      throw new AttachmentError(
+        `「${name}」超过 ${Math.round(ATTACHMENT_MAX_BYTES / 1024)}KB 上限`,
+      );
     }
     raw = extractPdfText(buf);
     if (!raw) raw = '（无法从该 PDF 提取文字，可能是扫描件或加密文件）';
@@ -95,7 +101,9 @@ export function extractOne(draft: AttachmentDraft): ExtractedAttachment {
     raw = draft.text ?? (draft.dataBase64 ? decodeBase64(draft.dataBase64).toString('utf8') : '');
     size = Buffer.byteLength(raw);
     if (size > ATTACHMENT_MAX_BYTES) {
-      throw new AttachmentError(`「${name}」超过 ${Math.round(ATTACHMENT_MAX_BYTES / 1024)}KB 上限`);
+      throw new AttachmentError(
+        `「${name}」超过 ${Math.round(ATTACHMENT_MAX_BYTES / 1024)}KB 上限`,
+      );
     }
     if (extname(name) === '.json' || mime.includes('json')) {
       try {
@@ -123,9 +131,7 @@ export function extractAttachments(drafts: AttachmentDraft[] | undefined): Extra
 
 export function formatAttachmentsPrompt(files: ExtractedAttachment[] | undefined): string {
   if (!files?.length) return '';
-  return files
-    .map((f) => `### ${f.name}\n${f.text}`)
-    .join('\n\n');
+  return files.map((f) => `### ${f.name}\n${f.text}`).join('\n\n');
 }
 
 export function toAttachmentPreview(file: ExtractedAttachment, max = 280): AttachmentPreview {

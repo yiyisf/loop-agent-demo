@@ -140,7 +140,9 @@ export function chatSystemPrompt(
   attachments?: string,
 ): string {
   const context = history ? `\n\n## Earlier conversation\n${history}` : '';
-  const files = attachments ? `\n\n## Attached files\nGround your answer in these files.\n${attachments}` : '';
+  const files = attachments
+    ? `\n\n## Attached files\nGround your answer in these files.\n${attachments}`
+    : '';
   return `You are a helpful assistant in a conversation. Answer the user directly.
 Use tools when they genuinely help (calculation, fetch, search, workspace files). Do not invent a multi-step project plan unless the user asks for one.
 If the user later wants a structured workflow, say so briefly and keep the current reply useful.

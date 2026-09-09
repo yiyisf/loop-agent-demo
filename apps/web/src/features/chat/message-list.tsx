@@ -14,7 +14,9 @@ export function messageText(message: AgentUIMessage): string {
 
 function userAttachments(message: AgentUIMessage): AttachmentPreview[] {
   return message.parts
-    .filter((p): p is Extract<typeof p, { type: 'data-attachment' }> => p.type === 'data-attachment')
+    .filter(
+      (p): p is Extract<typeof p, { type: 'data-attachment' }> => p.type === 'data-attachment',
+    )
     .map((p) => p.data);
 }
 

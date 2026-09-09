@@ -3,8 +3,8 @@ import type { LanguageModelUsage } from 'ai';
 import type { AppConfig } from '../../config.js';
 import type { Logger } from '../../lib/logger.js';
 import type { ModelProvider } from '../../providers/model-provider.js';
-import type { ExtractedAttachment } from '../attachments.js';
 import type { ArtifactStore } from '../artifacts.js';
+import type { ExtractedAttachment } from '../attachments.js';
 import type { RunState } from '../projections.js';
 import type { ToolRegistry } from '../tools/registry.js';
 

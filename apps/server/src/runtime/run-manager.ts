@@ -123,7 +123,9 @@ export class RunManager {
     };
     const artifacts = new ArtifactStore(run.id, path.resolve(config.DATA_DIR, 'runs', run.id), {
       persistence: this.deps.artifactPersistence,
-      onCreate: (artifact) => emit({ type: 'artifact.created', artifact }),
+      onCreate: (artifact) => {
+        emit({ type: 'artifact.created', artifact });
+      },
     });
 
     emit = (payload: RunEventPayload) => {

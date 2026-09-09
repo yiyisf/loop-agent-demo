@@ -49,4 +49,3 @@ describe('chat turn', () => {
     expect(user?.parts.some((p) => p.type === 'data-attachment')).toBe(true);
   });
 });
-

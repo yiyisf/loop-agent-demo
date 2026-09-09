@@ -41,11 +41,15 @@ export function citationsFromTool(toolName: string, output: unknown): Citation[]
 
   if (toolName === 'web_search' && Array.isArray(rec.results)) {
     return rec.results
-      .filter((r): r is { title?: unknown; url?: unknown; snippet?: unknown } => !!r && typeof r === 'object')
+      .filter(
+        (r): r is { title?: unknown; url?: unknown; snippet?: unknown } =>
+          !!r && typeof r === 'object',
+      )
       .slice(0, 8)
       .map((r) => ({
         id: newId('cite'),
-        title: typeof r.title === 'string' && r.title.trim() ? r.title : String(r.url ?? '搜索结果'),
+        title:
+          typeof r.title === 'string' && r.title.trim() ? r.title : String(r.url ?? '搜索结果'),
         url: typeof r.url === 'string' ? r.url : undefined,
         source: 'web_search' as const,
         excerpt: typeof r.snippet === 'string' ? excerptOf(r.snippet) : undefined,
