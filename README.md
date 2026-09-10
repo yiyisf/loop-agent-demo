@@ -26,6 +26,30 @@
 | 可观测性 | Pino 结构化日志、usage 事件、按模型单价表的成本估算、可选 AI SDK 遥测（`OTEL_ENABLED`）、事件调试视图 |
 | 交付 | 单进程生产部署（API + 静态前端）、Dockerfile / docker-compose、Playwright E2E |
 
+## 界面预览
+
+截图在 [`docs/screenshots/`](./docs/screenshots/)，用 mock 模型离线拍摄。需要重拍时：
+
+```bash
+pnpm screenshots    # 或 node scripts/capture-docs-screenshots.mjs
+```
+
+| 首页（无模式入口） | 对话（不生成计划） |
+| --- | --- |
+| ![首页](docs/screenshots/01-home.png) | ![对话](docs/screenshots/02-conversation.png) |
+
+| 工作流计划 + DAG | 工具审批 |
+| --- | --- |
+| ![工作流](docs/screenshots/03-workflow.png) | ![审批](docs/screenshots/04-hitl-approval.png) |
+
+| 计划确认 | 产物预览 |
+| --- | --- |
+| ![计划确认](docs/screenshots/05-plan-confirm.png) | ![产物](docs/screenshots/06-artifacts.png) |
+
+| 生成式 UI（点选卡片） |
+| --- |
+| ![生成式 UI](docs/screenshots/07-generative-ui.png) |
+
 ## 架构
 
 ```
