@@ -14,6 +14,7 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",
     "e2e": "playwright test",
+    "screenshots": "node scripts/capture-docs-screenshots.mjs",
     "format": "biome format --write ."
   },
   "devDependencies": {
